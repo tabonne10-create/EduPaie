@@ -174,6 +174,78 @@ class TestSchema(unittest.TestCase):
                 "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
                 "VALUES ('Dupont', 'Jean', 1, '2025-2026', -1000)"
             )
+    
+    def test_date_paiement_valide(self):
+        """Vérifie qu'une date invalide est refusée (CHECK)."""
+        # Créer une classe et un élève
+        self.conn.execute("INSERT INTO classes (nom) VALUES ('6ème A')")
+        self.conn.execute(
+            "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
+            "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
+        )
+        self.conn.commit()
+        
+        # Tentative d'insertion avec date invalide
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(
+                "INSERT INTO paiements "
+                "(eleve_id, montant, date_paiement, mode, numero_recu, solde_apres) "
+                "VALUES (1, 50000, '30/09/2025', 'especes', 'REC-2025-000001', 100000)"
+            )
+        
+        # Tentative d'insertion avec date vide
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(
+                "INSERT INTO paiements "
+                "(eleve_id, montant, date_paiement, mode, numero_recu, solde_apres) "
+                "VALUES (1, 50000, '', 'especes', 'REC-2025-000001', 100000)"
+            )
+    
+    def test_nom_non_vide(self):
+        """Vérifie qu'un nom vide est refusé (CHECK)."""
+        # Tentative d'insertion de classe avec nom vide
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute("INSERT INTO classes (nom) VALUES ('')")
+        
+        # Tentative d'insertion de classe avec nom composé d'espaces
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute("INSERT INTO classes (nom) VALUES ('   ')")
+        
+        # Créer une classe valide
+        self.conn.execute("INSERT INTO classes (nom) VALUES ('6ème A')")
+        self.conn.commit()
+        
+        # Tentative d'insertion d'élève avec nom vide
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(
+                "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
+                "VALUES ('', 'Jean', 1, '2025-2026', 150000)"
+            )
+        
+        # Tentative d'insertion d'élève avec prénom vide
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(
+                "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
+                "VALUES ('Dupont', '', 1, '2025-2026', 150000)"
+            )
+    
+    def test_solde_apres_non_negatif(self):
+        """Vérifie que solde_apres ne peut pas être négatif (CHECK)."""
+        # Créer une classe et un élève
+        self.conn.execute("INSERT INTO classes (nom) VALUES ('6ème A')")
+        self.conn.execute(
+            "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
+            "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
+        )
+        self.conn.commit()
+        
+        # Tentative d'insertion avec solde_apres négatif
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(
+                "INSERT INTO paiements "
+                "(eleve_id, montant, date_paiement, mode, numero_recu, solde_apres) "
+                "VALUES (1, 50000, '2025-09-30', 'especes', 'REC-2025-000001', -1000)"
+            )
 
 
 if __name__ == '__main__':
