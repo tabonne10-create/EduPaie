@@ -5,6 +5,8 @@ Ce module contient la logique métier liée aux paiements,
 en utilisant PaiementRepository, CompteurRecusRepository et les fonctions de validation.
 """
 
+from datetime import date
+from typing import Callable, Optional
 from edupaie.database.repositories.paiement_repository import PaiementRepository
 from edupaie.database.repositories.eleve_repository import EleveRepository
 from edupaie.database.repositories.compteur_recus_repository import CompteurRecusRepository
@@ -23,9 +25,14 @@ from edupaie.services.calculs import calculer_solde, formater_numero_recu
 class PaiementService:
     """Service métier pour la gestion des paiements."""
 
-    def __init__(self):
-        """Initialise le service."""
-        pass
+    def __init__(self, aujourdhui: Optional[Callable[[], date]] = None):
+        """
+        Initialise le service.
+
+        Args:
+            aujourdhui: Fonction retournant la date du jour (pour tests). Par défaut date.today().
+        """
+        self.aujourdhui = aujourdhui or date.today
 
     def enregistrer_paiement(
         self,
@@ -75,13 +82,18 @@ class PaiementService:
             # Règle métier : on ne peut pas payer plus que ce qui est dû
             # (sauf tolérance autorisée, mais ici on refuse le trop-perçu)
             if total_deja_paye + montant > eleve.total_du:
+                from edupaie.services.calculs import formater_montant
+                devise = parametre_repo.lire("devise")
+                if not devise:
+                    devise = "FCFA"
+                solde_restant = eleve.total_du - total_deja_paye
                 raise RegleMetierError(
                     f"Le paiement excède le montant dû. "
-                    f"Reste à payer : {eleve.total_du - total_deja_paye}"
+                    f"Reste à payer : {formater_montant(solde_restant, devise)}"
                 )
 
-            # Générer le numéro de reçu
-            annee_courante = int(date_paiement[0:4])
+            # Générer le numéro de reçu (année basée sur la date du jour)
+            annee_courante = self.aujourdhui().year
             prefixe = parametre_repo.lire("prefixe_recu")
             if not prefixe:
                 prefixe = "REC"
