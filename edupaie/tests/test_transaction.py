@@ -15,11 +15,12 @@ class TestTransaction(unittest.TestCase):
 
     def setUp(self):
         """Prépare une base de données temporaire pour les tests."""
-        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-        self.temp_db.close()
+        import shutil
+        self.temp_dir = tempfile.mkdtemp()
+        self.temp_db_path = os.path.join(self.temp_dir, 'test.db')
 
         # Initialiser la base
-        conn = sqlite3.connect(self.temp_db.name)
+        conn = sqlite3.connect(self.temp_db_path)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS test_table (
                 id INTEGER PRIMARY KEY,
@@ -31,11 +32,12 @@ class TestTransaction(unittest.TestCase):
 
     def tearDown(self):
         """Nettoie la base de données temporaire."""
-        os.unlink(self.temp_db.name)
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def _get_temp_connection(self):
         """Retourne une connexion à la base temporaire."""
-        conn = sqlite3.connect(self.temp_db.name)
+        conn = sqlite3.connect(self.temp_db_path)
         conn.row_factory = sqlite3.Row
         return conn
 

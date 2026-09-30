@@ -15,7 +15,9 @@ class TestSchema(unittest.TestCase):
     
     def setUp(self):
         """Crée une base de données temporaire pour chaque test."""
-        self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
+        import shutil
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, 'test.db')
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
@@ -34,8 +36,8 @@ class TestSchema(unittest.TestCase):
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
         self.conn.close()
-        os.close(self.db_fd)
-        os.unlink(self.db_path)
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
     
     def test_base_creee(self):
         """Vérifie que la base est créée avec toutes les tables."""
