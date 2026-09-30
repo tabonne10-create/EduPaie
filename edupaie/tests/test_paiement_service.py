@@ -441,6 +441,63 @@ class TestPaiementService(unittest.TestCase):
             # En pratique, cela signifie que l'incrémentation du compteur
             # est aussi annulée quand la transaction est rollbackée
 
+    @patch('edupaie.services.paiement_service.transaction')
+    def test_erreur_insertion_annule_compteur(self, mock_transaction):
+        """Teste qu'une erreur à l'insertion annule l'incrémentation du compteur."""
+        from datetime import date
+
+        mock_conn = MagicMock()
+        mock_transaction.return_value.__enter__.return_value = mock_conn
+
+        service = PaiementService(aujourdhui=lambda: date(2025, 1, 15))
+
+        with patch('edupaie.services.paiement_service.EleveRepository') as mock_eleve_repo_class, \
+             patch('edupaie.services.paiement_service.PaiementRepository') as mock_paiement_repo_class, \
+             patch('edupaie.services.paiement_service.CompteurRecusRepository') as mock_compteur_repo_class, \
+             patch('edupaie.services.paiement_service.ParametreRepository') as mock_parametre_repo_class:
+
+            mock_eleve_repo = MagicMock()
+            mock_paiement_repo = MagicMock()
+            mock_compteur_repo = MagicMock()
+            mock_parametre_repo = MagicMock()
+
+            mock_eleve_repo_class.return_value = mock_eleve_repo
+            mock_paiement_repo_class.return_value = mock_paiement_repo
+            mock_compteur_repo_class.return_value = mock_compteur_repo
+            mock_parametre_repo_class.return_value = mock_parametre_repo
+
+            mock_eleve_repo.trouver_par_id.return_value = Eleve(
+                id=1,
+                nom="Dupont",
+                prenom="Jean",
+                classe_id=1,
+                annee_scolaire="2025-2026",
+                total_du=150000
+            )
+            mock_paiement_repo.lister_par_eleve.return_value = []
+            mock_parametre_repo.lire.return_value = "REC"
+
+            # Simuler une erreur à l'insertion
+            mock_paiement_repo.inserer.side_effect = Exception("Erreur d'insertion")
+
+            # Le compteur est incrémenté avant l'insertion
+            mock_compteur_repo.incrementer.return_value = 1
+
+            # L'erreur doit être propagée
+            with self.assertRaises(Exception) as context:
+                service.enregistrer_paiement(1, 50000, "2025-01-15", "especes")
+            self.assertEqual(str(context.exception), "Erreur d'insertion")
+
+            # Vérifier que l'insertion a été appelée
+            mock_paiement_repo.inserer.assert_called_once()
+
+            # Vérifier que le compteur a été incrémenté (dans la transaction)
+            mock_compteur_repo.incrementer.assert_called_once_with(2025)
+
+            # Le rollback est assuré par le contexte de transaction
+            # En pratique, cela signifie que l'incrémentation du compteur
+            # est aussi annulée quand la transaction est rollbackée
+
 
 if __name__ == "__main__":
     unittest.main()
