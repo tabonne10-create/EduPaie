@@ -33,7 +33,7 @@ class StatistiquesService:
         """
         with transaction() as conn:
             repo = StatistiquesRepository(conn)
-            stats = repo.obtenir_globales()
+            stats = repo.totaux_globaux()
 
             # Calculer les statuts
             from edupaie.database.repositories.eleve_repository import EleveRepository
@@ -45,7 +45,7 @@ class StatistiquesService:
             eleves_non_payes = 0
 
             for eleve in eleves:
-                statut = determiner_statut(eleve.total_du, eleve.total_paye)
+                statut = determiner_statut(eleve.eleve.total_du, eleve.total_paye)
                 if statut.value == "Soldé":
                     eleves_soldes += 1
                 elif statut.value == "Partiellement payé":
@@ -53,11 +53,17 @@ class StatistiquesService:
                 else:
                     eleves_non_payes += 1
 
+            total_du = int(stats["total_du"])
+            total_paye = int(stats["total_encaisse"])
+            total_solde = total_du - total_paye
+            if total_solde < 0:
+                total_solde = 0  # Borné à 0 en cas de trop-perçu
+
             return {
-                "total_eleves": stats["total_eleves"],
-                "total_du": stats["total_du"],
-                "total_paye": stats["total_paye"],
-                "total_solde": stats["total_solde"],
+                "total_eleves": int(stats["nombre_eleves"]),
+                "total_du": total_du,
+                "total_paye": total_paye,
+                "total_solde": total_solde,
                 "eleves_soldes": eleves_soldes,
                 "eleves_partiellement_payes": eleves_partiellement_payes,
                 "eleves_non_payes": eleves_non_payes
@@ -79,16 +85,16 @@ class StatistiquesService:
 
             eleves = eleve_repo.lister_avec_totaux(classe_id=classe_id)
 
-            total_du = sum(e.total_du for e in eleves)
+            total_du = sum(e.eleve.total_du for e in eleves)
             total_paye = sum(e.total_paye for e in eleves)
-            total_solde = sum(e.total_du - e.total_paye for e in eleves)
+            total_solde = sum(e.eleve.total_du - e.total_paye for e in eleves)
 
             eleves_soldes = 0
             eleves_partiellement_payes = 0
             eleves_non_payes = 0
 
             for eleve in eleves:
-                statut = determiner_statut(eleve.total_du, eleve.total_paye)
+                statut = determiner_statut(eleve.eleve.total_du, eleve.total_paye)
                 if statut.value == "Soldé":
                     eleves_soldes += 1
                 elif statut.value == "Partiellement payé":

@@ -53,6 +53,35 @@ def valider_montant_positif(montant: int, champ: str = "montant") -> None:
         raise ValidationError(f"{champ} doit être strictement positif")
 
 
+def valider_montant_chaine(montant_str: str, champ: str = "montant") -> int:
+    """
+    Valide et convertit un montant sous forme de chaîne.
+
+    Args:
+        montant_str: Montant sous forme de chaîne
+        champ: Nom du champ pour le message d'erreur
+
+    Returns:
+        Montant converti en entier
+
+    Raises:
+        ValidationError: Si le format est invalide
+    """
+    if not montant_str:
+        raise ValidationError(f"{champ} ne peut pas être vide")
+
+    # Nettoyer : espaces et séparateurs
+    montant_nettoye = montant_str.replace(" ", "").replace(",", ".")
+
+    try:
+        montant = int(float(montant_nettoye))
+    except ValueError:
+        raise ValidationError(f"{champ} doit être un nombre valide")
+
+    valider_montant_positif(montant, champ)
+    return montant
+
+
 def valider_annee_scolaire(annee: str) -> None:
     """
     Valide le format d'une année scolaire (ex: "2025-2026").
@@ -119,6 +148,13 @@ def valider_date(date_str: str) -> None:
             est_bissextile = (annee % 4 == 0 and annee % 100 != 0) or (annee % 400 == 0)
             if jour > 29 or (jour == 29 and not est_bissextile):
                 raise ValidationError("Février n'a que 28 ou 29 jours (année bissextile)")
+
+        # Validation : date non future
+        from datetime import datetime
+        date_validee = datetime(annee, mois, jour)
+        date_actuelle = datetime.now()
+        if date_validee > date_actuelle:
+            raise ValidationError("La date ne peut pas être dans le futur")
 
     except ValueError:
         raise ValidationError("La date doit contenir des nombres valides")

@@ -13,7 +13,7 @@ from edupaie.services.validation import (
     valider_montant,
     valider_annee_scolaire
 )
-from edupaie.services.exceptions import ValidationError
+from edupaie.services.exceptions import ValidationError, ConfirmationRequise
 from edupaie.models.eleve import Eleve
 from edupaie.models.eleve_avec_totaux import EleveAvecTotaux
 
@@ -79,7 +79,8 @@ class EleveService:
         prenom: str,
         classe_id: int,
         annee_scolaire: str,
-        total_du: int
+        total_du: int,
+        confirmer: bool = False
     ) -> Eleve:
         """
         Modifie un élève.
@@ -91,12 +92,14 @@ class EleveService:
             classe_id: Nouvelle classe
             annee_scolaire: Nouvelle année scolaire
             total_du: Nouveau total dû
+            confirmer: Confirmation pour modification risquée
 
         Returns:
             Élève modifié
 
         Raises:
             ValidationError: Si les données sont invalides
+            ConfirmationRequise: Si la baisse du total_du nécessite une confirmation
         """
         valider_nom(nom, "Nom")
         valider_nom(prenom, "Prénom")
@@ -116,6 +119,20 @@ class EleveService:
             classe = classe_repo.trouver_par_id(classe_id)
             if classe is None:
                 raise ValidationError("Classe introuvable")
+
+            # Règle métier : baisse du total_du avec paiements existants
+            if total_du < eleve.total_du:
+                # Vérifier s'il y a des paiements
+                from edupaie.database.repositories.paiement_repository import PaiementRepository
+                paiement_repo = PaiementRepository(conn)
+                paiements = paiement_repo.lister_par_eleve(eleve_id)
+
+                if paiements and not confirmer:
+                    raise ConfirmationRequise(
+                        f"Vous baissez le total dû de {eleve.total_du} à {total_du} "
+                        f"alors que l'élève a déjà {len(paiements)} paiement(s). "
+                        "Confirmez pour continuer."
+                    )
 
             eleve_repo.modifier(
                 eleve_id,
@@ -169,7 +186,8 @@ class EleveService:
     def lister_eleves(
         self,
         classe_id: int = None,
-        recherche: str = None
+        recherche: str = None,
+        statut: str = None
     ) -> list[EleveAvecTotaux]:
         """
         Liste les élèves avec leurs totaux de paiement.
@@ -177,13 +195,26 @@ class EleveService:
         Args:
             classe_id: Filtre par classe (optionnel)
             recherche: Recherche par nom/prénom (optionnel)
+            statut: Filtre par statut ("Soldé", "Partiellement payé", "Non payé") (optionnel)
 
         Returns:
             Liste des élèves avec totaux
         """
         with transaction() as conn:
             eleve_repo = EleveRepository(conn)
-            return eleve_repo.lister_avec_totaux(classe_id, recherche)
+            eleves = eleve_repo.lister_avec_totaux(classe_id, recherche)
+
+            # Filtrer par statut si demandé
+            if statut:
+                from edupaie.services.calculs import determiner_statut
+                eleves_filtres = []
+                for eleve in eleves:
+                    statut_eleve = determiner_statut(eleve.eleve.total_du, eleve.total_paye)
+                    if statut_eleve.value == statut:
+                        eleves_filtres.append(eleve)
+                return eleves_filtres
+
+            return eleves
 
     def obtenir_statut_eleve(self, eleve_id: int) -> str:
         """
@@ -208,5 +239,5 @@ class EleveService:
 
             eleve_avec_totaux = eleve[0]
             from edupaie.services.calculs import determiner_statut
-            statut = determiner_statut(eleve_avec_totaux.total_du, eleve_avec_totaux.total_paye)
+            statut = determiner_statut(eleve_avec_totaux.eleve.total_du, eleve_avec_totaux.total_paye)
             return statut.value

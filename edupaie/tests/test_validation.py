@@ -7,6 +7,7 @@ from edupaie.services.validation import (
     valider_nom,
     valider_montant,
     valider_montant_positif,
+    valider_montant_chaine,
     valider_annee_scolaire,
     valider_date,
     valider_mode_paiement,
@@ -92,6 +93,15 @@ class TestValidation(unittest.TestCase):
         """Teste qu'une date valide passe."""
         valider_date("2025-01-15")
         valider_date("2024-12-31")
+
+    def test_valider_date_future(self):
+        """Teste qu'une date future est refusée."""
+        from datetime import datetime, timedelta
+        date_future = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+        with self.assertRaises(ValidationError) as context:
+            valider_date(date_future)
+        self.assertIn("futur", str(context.exception))
 
     def test_valider_date_vide(self):
         """Teste qu'une date vide lève une erreur."""
@@ -197,6 +207,36 @@ class TestValidation(unittest.TestCase):
         """Teste qu'un numéro de reçu valide passe."""
         valider_numero_recu("REC-2025-000001")
         valider_numero_recu("FAC-2026-123456")
+
+    def test_valider_montant_chaine_valide(self):
+        """Teste qu'un montant chaîne valide passe."""
+        self.assertEqual(valider_montant_chaine("150000"), 150000)
+        self.assertEqual(valider_montant_chaine("150 000"), 150000)
+        self.assertEqual(valider_montant_chaine("150,5"), 150)  # Arrondi à l'entier
+
+    def test_valider_montant_chaine_abc(self):
+        """Teste qu'un montant avec lettres lève une erreur."""
+        with self.assertRaises(ValidationError) as context:
+            valider_montant_chaine("abc")
+        self.assertIn("nombre valide", str(context.exception))
+
+    def test_valider_montant_chaine_negatif(self):
+        """Teste qu'un montant négatif lève une erreur."""
+        with self.assertRaises(ValidationError) as context:
+            valider_montant_chaine("-5")
+        self.assertIn("strictement positif", str(context.exception))
+
+    def test_valider_montant_chaine_zero(self):
+        """Teste qu'un montant zéro lève une erreur."""
+        with self.assertRaises(ValidationError) as context:
+            valider_montant_chaine("0")
+        self.assertIn("strictement positif", str(context.exception))
+
+    def test_valider_montant_chaine_virgule(self):
+        """Teste qu'un montant avec virgule est accepté (converti)."""
+        # "12,5" devient 12 après conversion
+        result = valider_montant_chaine("12,5")
+        self.assertEqual(result, 12)
 
     def test_valider_numero_recu_vide(self):
         """Teste qu'un numéro vide lève une erreur."""
