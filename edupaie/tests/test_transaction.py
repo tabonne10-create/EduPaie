@@ -20,6 +20,7 @@ class TestTransaction(unittest.TestCase):
 
         # Initialiser la base
         conn = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=10)
+        conn.execute("BEGIN")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS test_table (
                 id INTEGER PRIMARY KEY,

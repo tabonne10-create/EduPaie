@@ -31,6 +31,7 @@ class TestStatistiquesService(unittest.TestCase):
         )
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
+        self.conn.execute("BEGIN")
         self.conn.executescript(schema_sql)
         self.conn.execute("COMMIT")
 

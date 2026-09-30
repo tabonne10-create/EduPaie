@@ -44,14 +44,14 @@ def init_database():
     - Le fichier sera inclus via --add-data dans le spec file PyInstaller
     """
     db_path = get_database_path()
-    
+
     # Si la base existe déjà, ne rien faire
     if os.path.exists(db_path):
         return
-    
+
     # Créer la base et exécuter le schéma
     conn = get_connection()
-    
+
     # Chemin vers schema.sql
     if getattr(sys, 'frozen', False):
         # Mode packagé PyInstaller : schema.sql est dans sys._MEIPASS
@@ -64,10 +64,11 @@ def init_database():
             'database',
             'schema.sql'
         )
-    
+
     with open(schema_path, 'r', encoding='utf-8') as f:
         schema_sql = f.read()
-    
+
+    conn.execute("BEGIN")
     conn.executescript(schema_sql)
-    conn.commit()
+    conn.execute("COMMIT")
     conn.close()
