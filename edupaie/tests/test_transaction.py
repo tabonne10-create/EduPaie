@@ -19,14 +19,14 @@ class TestTransaction(unittest.TestCase):
         self.temp_db.close()
 
         # Initialiser la base
-        conn = sqlite3.connect(self.temp_db.name)
+        conn = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=10)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS test_table (
                 id INTEGER PRIMARY KEY,
                 valeur TEXT
             )
         """)
-        conn.commit()
+        conn.execute("COMMIT")
         conn.close()
 
     def tearDown(self):
@@ -35,7 +35,7 @@ class TestTransaction(unittest.TestCase):
 
     def _get_temp_connection(self):
         """Retourne une connexion à la base temporaire."""
-        conn = sqlite3.connect(self.temp_db.name)
+        conn = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=10)
         conn.row_factory = sqlite3.Row
         return conn
 

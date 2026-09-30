@@ -24,10 +24,10 @@ class TestRepositories(unittest.TestCase):
     def setUp(self):
         """Crée une base de données temporaire pour chaque test."""
         self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, isolation_level=None, timeout=10)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
-        
+
         # Exécuter le schéma
         schema_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -37,7 +37,7 @@ class TestRepositories(unittest.TestCase):
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
         self.conn.executescript(schema_sql)
-        self.conn.commit()
+        self.conn.execute("COMMIT")
     
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
