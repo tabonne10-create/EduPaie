@@ -42,6 +42,7 @@ dist/
 *.db
 *.sqlite
 *.sqlite3
+temp_db/
 
 # OS
 .DS_Store
