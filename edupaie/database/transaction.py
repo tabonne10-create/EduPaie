@@ -33,9 +33,9 @@ def transaction() -> Generator[sqlite3.Connection, None, None]:
     try:
         conn.execute("BEGIN IMMEDIATE")
         yield conn
-        conn.execute("COMMIT")
+        conn.commit()
     except Exception:
-        conn.execute("ROLLBACK")
+        conn.rollback()
         raise
     finally:
         conn.close()

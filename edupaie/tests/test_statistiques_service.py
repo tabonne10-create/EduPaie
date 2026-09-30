@@ -19,7 +19,7 @@ class TestStatistiquesService(unittest.TestCase):
     def setUp(self):
         """Crée une base de données temporaire pour chaque test."""
         self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
-        self.conn = sqlite3.connect(self.db_path, isolation_level="", timeout=10)
+        self.conn = sqlite3.connect(self.db_path, timeout=10)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
 
@@ -31,9 +31,8 @@ class TestStatistiquesService(unittest.TestCase):
         )
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
-        self.conn.execute("BEGIN")
         self.conn.executescript(schema_sql)
-        self.conn.execute("COMMIT")
+        self.conn.commit()
 
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
