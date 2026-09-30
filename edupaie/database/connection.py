@@ -16,7 +16,6 @@ def get_connection():
     Ouvre une connexion à la base de données edupaie.db.
 
     La connexion est configurée avec :
-    - timeout=10 : attente de 10 secondes si la base est verrouillée
     - PRAGMA foreign_keys = ON : active les clés étrangères
     - row_factory = sqlite3.Row : permet d'accéder aux colonnes par nom
 
@@ -24,7 +23,7 @@ def get_connection():
         sqlite3.Connection: Connexion à la base de données
     """
     db_path = get_database_path()
-    conn = sqlite3.connect(db_path, timeout=10)
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

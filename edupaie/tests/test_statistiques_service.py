@@ -18,10 +18,8 @@ class TestStatistiquesService(unittest.TestCase):
 
     def setUp(self):
         """Crée une base de données temporaire pour chaque test."""
-        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-        self.temp_db.close()
-        self.db_path = self.temp_db.name
-        self.conn = sqlite3.connect(self.db_path, timeout=10)
+        self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
+        self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
 
@@ -39,6 +37,7 @@ class TestStatistiquesService(unittest.TestCase):
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
         self.conn.close()
+        os.close(self.db_fd)
         os.unlink(self.db_path)
 
     @patch('edupaie.database.transaction.get_connection')

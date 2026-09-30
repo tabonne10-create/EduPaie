@@ -31,7 +31,6 @@ def transaction() -> Generator[sqlite3.Connection, None, None]:
     """
     conn = get_connection()
     try:
-        conn.execute("BEGIN IMMEDIATE")
         yield conn
         conn.commit()
     except Exception:
