@@ -67,7 +67,7 @@ class ParametreRepository:
                 "ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur",
                 (cle, valeur)
             )
-        except sqlite3.Error as e:
+        except sqlite3.IntegrityError as e:
             raise ParametreRepositoryError(
                 f"Impossible d'écrire le paramètre '{cle}' : {str(e)}"
             ) from e
