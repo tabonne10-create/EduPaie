@@ -82,7 +82,7 @@ class PaiementService:
             # Règle métier : on ne peut pas payer plus que ce qui est dû
             # (sauf tolérance autorisée, mais ici on refuse le trop-perçu)
             if total_deja_paye + montant > eleve.total_du:
-                from edupaie.services.calculs import formater_montant
+                from edupaie.utils.format import formater_montant
                 devise = parametre_repo.lire("devise")
                 if not devise:
                     devise = "FCFA"
