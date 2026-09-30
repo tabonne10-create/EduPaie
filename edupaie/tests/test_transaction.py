@@ -19,7 +19,7 @@ class TestTransaction(unittest.TestCase):
         self.temp_db.close()
 
         # Initialiser la base
-        conn = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=10)
+        conn = sqlite3.connect(self.temp_db.name, isolation_level="", timeout=10)
         conn.execute("BEGIN")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS test_table (
@@ -36,7 +36,7 @@ class TestTransaction(unittest.TestCase):
 
     def _get_temp_connection(self):
         """Retourne une connexion à la base temporaire."""
-        conn = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=10)
+        conn = sqlite3.connect(self.temp_db.name, isolation_level="", timeout=10)
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -99,11 +99,11 @@ class TestTransaction(unittest.TestCase):
     def test_transaction_locked_database(self):
         """Teste qu'une seconde transaction échoue si la base est verrouillée."""
         # Créer une connexion qui verrouille la base (BEGIN IMMEDIATE)
-        conn1 = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=0.1)
+        conn1 = sqlite3.connect(self.temp_db.name, isolation_level="", timeout=0.1)
         conn1.execute("BEGIN IMMEDIATE")
 
         # Tenter une seconde écriture avec timeout court
-        conn2 = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=0.1)
+        conn2 = sqlite3.connect(self.temp_db.name, isolation_level="", timeout=0.1)
         with self.assertRaises(sqlite3.OperationalError) as context:
             conn2.execute("BEGIN IMMEDIATE")
 

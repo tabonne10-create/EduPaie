@@ -19,7 +19,7 @@ class TestStatistiquesService(unittest.TestCase):
     def setUp(self):
         """Crée une base de données temporaire pour chaque test."""
         self.db_fd, self.db_path = tempfile.mkstemp(suffix='.db')
-        self.conn = sqlite3.connect(self.db_path, isolation_level=None, timeout=10)
+        self.conn = sqlite3.connect(self.db_path, isolation_level="", timeout=10)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
 
