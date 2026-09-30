@@ -95,6 +95,24 @@ class TestTransaction(unittest.TestCase):
         valeurs = [row[0] for row in rows]
         self.assertEqual(valeurs, ["test1", "test2", "test3"])
 
+    def test_transaction_locked_database(self):
+        """Teste qu'une seconde transaction échoue si la base est verrouillée."""
+        # Créer une connexion qui verrouille la base (BEGIN IMMEDIATE)
+        conn1 = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=0.1)
+        conn1.execute("BEGIN IMMEDIATE")
+
+        # Tenter une seconde écriture avec timeout court
+        conn2 = sqlite3.connect(self.temp_db.name, isolation_level=None, timeout=0.1)
+        with self.assertRaises(sqlite3.OperationalError) as context:
+            conn2.execute("BEGIN IMMEDIATE")
+
+        self.assertIn("database is locked", str(context.exception))
+
+        # Nettoyer
+        conn1.execute("ROLLBACK")
+        conn1.close()
+        conn2.close()
+
 
 if __name__ == "__main__":
     unittest.main()
