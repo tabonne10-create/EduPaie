@@ -15,9 +15,10 @@ class TestTransaction(unittest.TestCase):
 
     def setUp(self):
         """Prépare une base de données temporaire pour les tests."""
-        import shutil
-        self.temp_dir = tempfile.mkdtemp()
-        self.temp_db_path = os.path.join(self.temp_dir, 'test.db')
+        # Utiliser un répertoire temporaire dans le projet
+        self.temp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_db')
+        os.makedirs(self.temp_dir, exist_ok=True)
+        self.temp_db_path = os.path.join(self.temp_dir, f'test_{id(self)}.db')
 
         # Initialiser la base
         conn = sqlite3.connect(self.temp_db_path)
@@ -32,8 +33,10 @@ class TestTransaction(unittest.TestCase):
 
     def tearDown(self):
         """Nettoie la base de données temporaire."""
-        import shutil
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        try:
+            os.unlink(self.temp_db_path)
+        except:
+            pass
 
     def _get_temp_connection(self):
         """Retourne une connexion à la base temporaire."""
