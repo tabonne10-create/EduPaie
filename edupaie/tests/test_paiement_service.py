@@ -124,11 +124,13 @@ class TestPaiementService(unittest.TestCase):
 
             # Mock insertion
             mock_paiement_repo.inserer.return_value = 1
-            mock_paiement_repo.trouver_par_id.return_value = MagicMock(
+            mock_paiement_retourne = MagicMock(
                 id=1,
                 montant=50000,
-                numero_recu="REC-2025-000001"
+                numero_recu="REC-2025-000001",
+                solde_apres=0  # Solde après = 0 car paiement = solde restant
             )
+            mock_paiement_repo.trouver_par_id.return_value = mock_paiement_retourne
 
             # Mock compteur
             mock_compteur_repo.incrementer.return_value = 1
@@ -139,6 +141,8 @@ class TestPaiementService(unittest.TestCase):
 
             self.assertIsNotNone(result)
             mock_paiement_repo.inserer.assert_called_once()
+            # Vérifier que solde_apres = 0 (statut Soldé)
+            self.assertEqual(result.solde_apres, 0)
 
     @patch('edupaie.services.paiement_service.transaction')
     @patch.object(PaiementService, '__init__', lambda self: None)
