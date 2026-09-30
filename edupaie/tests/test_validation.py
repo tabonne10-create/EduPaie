@@ -217,7 +217,7 @@ class TestValidation(unittest.TestCase):
         """Teste qu'un montant avec lettres lève une erreur."""
         with self.assertRaises(ValidationError) as context:
             valider_montant_chaine("abc")
-        self.assertIn("nombre valide", str(context.exception))
+        self.assertIn("nombre entier valide", str(context.exception))
 
     def test_valider_montant_chaine_negatif(self):
         """Teste qu'un montant négatif lève une erreur."""
