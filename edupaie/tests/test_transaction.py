@@ -21,14 +21,13 @@ class TestTransaction(unittest.TestCase):
         self.temp_db_path = os.path.join(self.temp_dir, f'test_{id(self)}.db')
 
         # Initialiser la base
-        conn = sqlite3.connect(self.temp_db_path)
+        conn = sqlite3.connect(self.temp_db_path, isolation_level=None, timeout=10)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS test_table (
                 id INTEGER PRIMARY KEY,
                 valeur TEXT
             )
         """)
-        conn.commit()
         conn.close()
 
     def tearDown(self):
@@ -39,8 +38,8 @@ class TestTransaction(unittest.TestCase):
             pass
 
     def _get_temp_connection(self):
-        """Retourne une connexion à la base temporaire."""
-        conn = sqlite3.connect(self.temp_db_path)
+        """Retourne une connexion à la base temporaire avec les mêmes paramètres que get_connection."""
+        conn = sqlite3.connect(self.temp_db_path, isolation_level=None, timeout=10)
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -99,6 +98,29 @@ class TestTransaction(unittest.TestCase):
         conn.close()
         valeurs = [row[0] for row in rows]
         self.assertEqual(valeurs, ["test1", "test2", "test3"])
+
+    @patch('edupaie.database.transaction.get_connection')
+    def test_transaction_verrou(self, mock_get_connection):
+        """Teste qu'une seconde transaction avec un timeout court lève sqlite3.OperationalError."""
+        mock_get_connection.return_value = self._get_temp_connection()
+
+        # Ouvrir une transaction et la laisser ouverte
+        conn1 = self._get_temp_connection()
+        conn1.execute("BEGIN IMMEDIATE")
+
+        # Tenter une seconde transaction avec un timeout très court
+        try:
+            conn2 = sqlite3.connect(self.temp_db_path, isolation_level=None, timeout=0.1)
+            conn2.row_factory = sqlite3.Row
+            conn2.execute("BEGIN IMMEDIATE")
+            self.fail("La seconde transaction aurait dû lever sqlite3.OperationalError")
+        except sqlite3.OperationalError as e:
+            self.assertIn("locked", str(e).lower())
+        finally:
+            conn1.execute("ROLLBACK")
+            conn1.close()
+            if 'conn2' in locals():
+                conn2.close()
 
 
 if __name__ == "__main__":

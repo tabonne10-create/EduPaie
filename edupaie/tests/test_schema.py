@@ -19,7 +19,7 @@ class TestSchema(unittest.TestCase):
         self.temp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_db')
         os.makedirs(self.temp_dir, exist_ok=True)
         self.db_path = os.path.join(self.temp_dir, f'test_{id(self)}.db')
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, isolation_level=None, timeout=10)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
 
@@ -32,7 +32,6 @@ class TestSchema(unittest.TestCase):
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
         self.conn.executescript(schema_sql)
-        self.conn.commit()
 
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
@@ -73,7 +72,7 @@ class TestSchema(unittest.TestCase):
             "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
             "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
         )
-        self.conn.commit()
+
         
         # Tentative d'insertion avec montant négatif
         with self.assertRaises(sqlite3.IntegrityError):
@@ -99,7 +98,7 @@ class TestSchema(unittest.TestCase):
             "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
             "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
         )
-        self.conn.commit()
+
         
         # Tentative d'insertion avec mode invalide
         with self.assertRaises(sqlite3.IntegrityError):
@@ -117,7 +116,7 @@ class TestSchema(unittest.TestCase):
             "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
             "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
         )
-        self.conn.commit()
+
         
         # Premier paiement
         self.conn.execute(
@@ -125,7 +124,7 @@ class TestSchema(unittest.TestCase):
             "(eleve_id, montant, date_paiement, mode, numero_recu, solde_apres) "
             "VALUES (1, 50000, '2025-09-30', 'especes', 'REC-2025-000001', 100000)"
         )
-        self.conn.commit()
+
         
         # Tentative de deuxième paiement avec même numéro
         with self.assertRaises(sqlite3.IntegrityError):
@@ -153,7 +152,7 @@ class TestSchema(unittest.TestCase):
             "(eleve_id, montant, date_paiement, mode, numero_recu, solde_apres) "
             "VALUES (1, 50000, '2025-10-01', 'cheque', 'REC-2025-000002', 50000)"
         )
-        self.conn.commit()
+
         
         # Vérifier qu'il y a 2 paiements
         cursor = self.conn.execute("SELECT COUNT(*) as count FROM paiements")
@@ -161,7 +160,7 @@ class TestSchema(unittest.TestCase):
         
         # Supprimer l'élève
         self.conn.execute("DELETE FROM eleves WHERE id = 1")
-        self.conn.commit()
+
         
         # Vérifier que les paiements sont supprimés
         cursor = self.conn.execute("SELECT COUNT(*) as count FROM paiements")
@@ -171,7 +170,7 @@ class TestSchema(unittest.TestCase):
         """Vérifie que total_du ne peut pas être négatif (CHECK)."""
         # Créer une classe
         self.conn.execute("INSERT INTO classes (nom) VALUES ('6ème A')")
-        self.conn.commit()
+
         
         # Tentative d'insertion avec total_du négatif
         with self.assertRaises(sqlite3.IntegrityError):
@@ -188,7 +187,7 @@ class TestSchema(unittest.TestCase):
             "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
             "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
         )
-        self.conn.commit()
+
         
         # Tentative d'insertion avec date invalide
         with self.assertRaises(sqlite3.IntegrityError):
@@ -218,7 +217,7 @@ class TestSchema(unittest.TestCase):
         
         # Créer une classe valide
         self.conn.execute("INSERT INTO classes (nom) VALUES ('6ème A')")
-        self.conn.commit()
+
         
         # Tentative d'insertion d'élève avec nom vide
         with self.assertRaises(sqlite3.IntegrityError):
@@ -242,7 +241,7 @@ class TestSchema(unittest.TestCase):
             "INSERT INTO eleves (nom, prenom, classe_id, annee_scolaire, total_du) "
             "VALUES ('Dupont', 'Jean', 1, '2025-2026', 150000)"
         )
-        self.conn.commit()
+
         
         # Tentative d'insertion avec solde_apres négatif
         with self.assertRaises(sqlite3.IntegrityError):

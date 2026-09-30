@@ -22,7 +22,7 @@ class TestStatistiquesService(unittest.TestCase):
         self.temp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_db')
         os.makedirs(self.temp_dir, exist_ok=True)
         self.db_path = os.path.join(self.temp_dir, f'test_{id(self)}.db')
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, isolation_level=None, timeout=10)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
 
@@ -35,7 +35,6 @@ class TestStatistiquesService(unittest.TestCase):
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
         self.conn.executescript(schema_sql)
-        self.conn.commit()
 
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
@@ -56,19 +55,19 @@ class TestStatistiquesService(unittest.TestCase):
         paiement_repo = PaiementRepository(self.conn)
 
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
 
         # Élève 1 : trop-perçu
         eleve1 = eleve_repo.creer("Dupont", "Jean", classe.id, "2025-2026", 150000)
-        self.conn.commit()
+
         paiement_repo.inserer(eleve1.id, 200000, "2025-09-30", "especes", "REC-2025-000001", 0)
-        self.conn.commit()
+
 
         # Élève 2 : soldé exact
         eleve2 = eleve_repo.creer("Martin", "Paul", classe.id, "2025-2026", 150000)
-        self.conn.commit()
+
         paiement_repo.inserer(eleve2.id, 150000, "2025-09-30", "especes", "REC-2025-000002", 0)
-        self.conn.commit()
+
 
         # Tester le service
         service = StatistiquesService()

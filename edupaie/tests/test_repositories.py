@@ -28,7 +28,7 @@ class TestRepositories(unittest.TestCase):
         self.temp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp_db')
         os.makedirs(self.temp_dir, exist_ok=True)
         self.db_path = os.path.join(self.temp_dir, f'test_{id(self)}.db')
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, isolation_level=None, timeout=10)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
 
@@ -41,7 +41,6 @@ class TestRepositories(unittest.TestCase):
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
         self.conn.executescript(schema_sql)
-        self.conn.commit()
 
     def tearDown(self):
         """Ferme la connexion et supprime la base temporaire."""
@@ -54,61 +53,61 @@ class TestRepositories(unittest.TestCase):
     def test_classe_crud(self):
         """Teste CRUD complet sur une classe."""
         repo = ClasseRepository(self.conn)
-        
+
         # Créer
         classe = repo.creer("6ème A")
-        self.conn.commit()
+
         self.assertIsNotNone(classe.id)
         self.assertEqual(classe.nom, "6ème A")
-        
+
         # Lire
         trouvee = repo.trouver_par_id(classe.id)
         self.assertEqual(trouvee.nom, "6ème A")
-        
+
         # Modifier
         repo.modifier(classe.id, "6ème B")
-        self.conn.commit()
+
         modifiee = repo.trouver_par_id(classe.id)
         self.assertEqual(modifiee.nom, "6ème B")
-        
+
         # Supprimer
         repo.supprimer(classe.id)
-        self.conn.commit()
+
         self.assertIsNone(repo.trouver_par_id(classe.id))
     
     def test_eleve_crud(self):
         """Teste CRUD complet sur un élève."""
         classe_repo = ClasseRepository(self.conn)
         eleve_repo = EleveRepository(self.conn)
-        
+
         # Créer une classe
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
-        
+
+
         # Créer un élève
         eleve = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         self.assertIsNotNone(eleve.id)
         self.assertEqual(eleve.nom, "Dupont")
-        
+
         # Lire
         trouve = eleve_repo.trouver_par_id(eleve.id)
         self.assertEqual(trouve.nom, "Dupont")
-        
+
         # Modifier
         eleve_repo.modifier(
             eleve.id, "Martin", "Paul", classe.id, "2025-2026", 200000
         )
-        self.conn.commit()
+
         modifie = eleve_repo.trouver_par_id(eleve.id)
         self.assertEqual(modifie.nom, "Martin")
         self.assertEqual(modifie.total_du, 200000)
-        
+
         # Supprimer
         eleve_repo.supprimer(eleve.id)
-        self.conn.commit()
+
         self.assertIsNone(eleve_repo.trouver_par_id(eleve.id))
     
     def test_lister_avec_totaux_sans_paiement(self):
@@ -117,11 +116,11 @@ class TestRepositories(unittest.TestCase):
         eleve_repo = EleveRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         
         liste = eleve_repo.lister_avec_totaux()
         self.assertEqual(len(liste), 1)
@@ -135,21 +134,21 @@ class TestRepositories(unittest.TestCase):
         paiement_repo = PaiementRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         
         # Ajouter des paiements
         paiement_repo.inserer(
             eleve.id, 50000, "2025-09-30", "especes", "REC-2025-000001", 100000
         )
-        self.conn.commit()
+
         paiement_repo.inserer(
             eleve.id, 30000, "2025-10-01", "cheque", "REC-2025-000002", 70000
         )
-        self.conn.commit()
+
         
         liste = eleve_repo.lister_avec_totaux()
         self.assertEqual(len(liste), 1)
@@ -161,11 +160,11 @@ class TestRepositories(unittest.TestCase):
         eleve_repo = EleveRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve_repo.creer("Dupont", "Jean", classe.id, "2025-2026", 150000)
         eleve_repo.creer("Martin", "Paul", classe.id, "2025-2026", 150000)
         eleve_repo.creer("Dupont", "Marie", classe.id, "2025-2026", 150000)
-        self.conn.commit()
+
         
         # Recherche par nom
         resultats = eleve_repo.lister_avec_totaux(recherche="Dupont")
@@ -182,12 +181,12 @@ class TestRepositories(unittest.TestCase):
         
         classe1 = classe_repo.creer("6ème A")
         classe2 = classe_repo.creer("6ème B")
-        self.conn.commit()
+
         
         eleve_repo.creer("Dupont", "Jean", classe1.id, "2025-2026", 150000)
         eleve_repo.creer("Martin", "Paul", classe1.id, "2025-2026", 150000)
         eleve_repo.creer("Durand", "Marie", classe2.id, "2025-2026", 150000)
-        self.conn.commit()
+
         
         resultats = eleve_repo.lister_avec_totaux(classe_id=classe1.id)
         self.assertEqual(len(resultats), 2)
@@ -202,28 +201,28 @@ class TestRepositories(unittest.TestCase):
         paiement_repo = PaiementRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         
         # Ajouter des paiements
         paiement_repo.inserer(
             eleve.id, 50000, "2025-09-30", "especes", "REC-2025-000001", 100000
         )
-        self.conn.commit()
+
         paiement_repo.inserer(
             eleve.id, 30000, "2025-10-01", "cheque", "REC-2025-000002", 70000
         )
-        self.conn.commit()
+
         
         # Vérifier que les paiements existent
         self.assertEqual(len(paiement_repo.lister_par_eleve(eleve.id)), 2)
         
         # Supprimer l'élève
         eleve_repo.supprimer(eleve.id)
-        self.conn.commit()
+
         
         # Vérifier que les paiements sont supprimés
         self.assertEqual(len(paiement_repo.lister_par_eleve(eleve.id)), 0)
@@ -234,9 +233,9 @@ class TestRepositories(unittest.TestCase):
         eleve_repo = EleveRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve_repo.creer("Dupont", "Jean", classe.id, "2025-2026", 150000)
-        self.conn.commit()
+
         
         with self.assertRaises(ClasseRepositoryError) as context:
             classe_repo.supprimer(classe.id)
@@ -250,17 +249,17 @@ class TestRepositories(unittest.TestCase):
         paiement_repo = PaiementRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         
         # Premier paiement
         paiement_repo.inserer(
             eleve.id, 50000, "2025-09-30", "especes", "REC-2025-000001", 100000
         )
-        self.conn.commit()
+
         
         # Deuxième paiement avec même numéro
         with self.assertRaises(PaiementRepositoryError):
@@ -275,21 +274,21 @@ class TestRepositories(unittest.TestCase):
         paiement_repo = PaiementRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         
         # Ajouter des paiements dans le désordre
         paiement_repo.inserer(
             eleve.id, 30000, "2025-10-01", "cheque", "REC-2025-000002", 70000
         )
-        self.conn.commit()
+
         paiement_repo.inserer(
             eleve.id, 50000, "2025-09-30", "especes", "REC-2025-000001", 100000
         )
-        self.conn.commit()
+
         
         paiements = paiement_repo.lister_par_eleve(eleve.id)
         self.assertEqual(len(paiements), 2)
@@ -306,13 +305,13 @@ class TestRepositories(unittest.TestCase):
         
         # Modifier un paramètre
         repo.ecrire("nom_etablissement", "Nouveau Nom")
-        self.conn.commit()
+
         nom = repo.lire("nom_etablissement")
         self.assertEqual(nom, "Nouveau Nom")
         
         # Créer un nouveau paramètre
         repo.ecrire("nouveau_param", "valeur")
-        self.conn.commit()
+
         valeur = repo.lire("nouveau_param")
         self.assertEqual(valeur, "valeur")
         
@@ -327,11 +326,11 @@ class TestRepositories(unittest.TestCase):
         eleve_repo = EleveRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve = eleve_repo.creer(
             "O'Brien", "Jean", classe.id, "2025-2026", 150000
         )
-        self.conn.commit()
+
         
         # Vérifier que l'élève est créé
         trouve = eleve_repo.trouver_par_id(eleve.id)
@@ -347,16 +346,16 @@ class TestRepositories(unittest.TestCase):
         
         # Première année
         num1 = repo.incrementer(2025)
-        self.conn.commit()
+
         self.assertEqual(num1, 1)
         
         num2 = repo.incrementer(2025)
-        self.conn.commit()
+
         self.assertEqual(num2, 2)
         
         # Nouvelle année
         num3 = repo.incrementer(2026)
-        self.conn.commit()
+
         self.assertEqual(num3, 1)
         
         # Lecture
@@ -371,23 +370,23 @@ class TestRepositories(unittest.TestCase):
         stats_repo = StatistiquesRepository(self.conn)
         
         classe = classe_repo.creer("6ème A")
-        self.conn.commit()
+
         eleve1 = eleve_repo.creer(
             "Dupont", "Jean", classe.id, "2025-2026", 150000
         )
         eleve2 = eleve_repo.creer(
             "Martin", "Paul", classe.id, "2025-2026", 200000
         )
-        self.conn.commit()
+
         
         paiement_repo.inserer(
             eleve1.id, 50000, "2025-09-30", "especes", "REC-2025-000001", 100000
         )
-        self.conn.commit()
+
         paiement_repo.inserer(
             eleve2.id, 100000, "2025-10-01", "cheque", "REC-2025-000002", 100000
         )
-        self.conn.commit()
+
         
         stats = stats_repo.totaux_globaux()
         self.assertEqual(stats['nombre_eleves'], 2)
