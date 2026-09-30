@@ -212,7 +212,6 @@ class TestValidation(unittest.TestCase):
         """Teste qu'un montant chaîne valide passe."""
         self.assertEqual(valider_montant_chaine("150000"), 150000)
         self.assertEqual(valider_montant_chaine("150 000"), 150000)
-        self.assertEqual(valider_montant_chaine("150,5"), 150)  # Arrondi à l'entier
 
     def test_valider_montant_chaine_abc(self):
         """Teste qu'un montant avec lettres lève une erreur."""
@@ -233,10 +232,16 @@ class TestValidation(unittest.TestCase):
         self.assertIn("strictement positif", str(context.exception))
 
     def test_valider_montant_chaine_virgule(self):
-        """Teste qu'un montant avec virgule est accepté (converti)."""
-        # "12,5" devient 12 après conversion
-        result = valider_montant_chaine("12,5")
-        self.assertEqual(result, 12)
+        """Teste qu'un montant avec virgule est refusé."""
+        with self.assertRaises(ValidationError) as context:
+            valider_montant_chaine("12,5")
+        self.assertIn("décimales", str(context.exception))
+
+    def test_valider_montant_chaine_point(self):
+        """Teste qu'un montant avec point décimal est refusé."""
+        with self.assertRaises(ValidationError) as context:
+            valider_montant_chaine("12.5")
+        self.assertIn("décimales", str(context.exception))
 
     def test_valider_numero_recu_vide(self):
         """Teste qu'un numéro vide lève une erreur."""

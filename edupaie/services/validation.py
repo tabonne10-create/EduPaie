@@ -70,13 +70,19 @@ def valider_montant_chaine(montant_str: str, champ: str = "montant") -> int:
     if not montant_str:
         raise ValidationError(f"{champ} ne peut pas être vide")
 
-    # Nettoyer : espaces et séparateurs
-    montant_nettoye = montant_str.replace(" ", "").replace(",", ".")
+    # Refuser les virgules et points décimaux
+    if "," in montant_str or "." in montant_str:
+        raise ValidationError(
+            f"{champ} doit être un entier. Les décimales (virgule ou point) ne sont pas acceptées."
+        )
+
+    # Nettoyer : retirer uniquement les espaces
+    montant_nettoye = montant_str.replace(" ", "")
 
     try:
-        montant = int(float(montant_nettoye))
+        montant = int(montant_nettoye)
     except ValueError:
-        raise ValidationError(f"{champ} doit être un nombre valide")
+        raise ValidationError(f"{champ} doit être un nombre entier valide")
 
     valider_montant_positif(montant, champ)
     return montant
