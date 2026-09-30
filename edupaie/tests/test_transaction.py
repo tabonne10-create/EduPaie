@@ -65,7 +65,6 @@ class TestTransaction(unittest.TestCase):
         # Insérer une donnée avant
         conn = self._get_temp_connection()
         conn.execute("INSERT INTO test_table (valeur) VALUES (?)", ("before",))
-        conn.commit()
         conn.close()
 
         # Tenter une transaction qui échoue
@@ -101,7 +100,7 @@ class TestTransaction(unittest.TestCase):
 
     @patch('edupaie.database.transaction.get_connection')
     def test_transaction_verrou(self, mock_get_connection):
-        """Teste qu'une seconde transaction avec un timeout court lève sqlite3.OperationalError."""
+        """Teste qu'une seconde transaction avec un timeout court lève sqlite3.OperationalError avec 'locked'."""
         mock_get_connection.return_value = self._get_temp_connection()
 
         # Ouvrir une transaction et la laisser ouverte
@@ -115,7 +114,11 @@ class TestTransaction(unittest.TestCase):
             conn2.execute("BEGIN IMMEDIATE")
             self.fail("La seconde transaction aurait dû lever sqlite3.OperationalError")
         except sqlite3.OperationalError as e:
+            # Vérifier que c'est bien une erreur de verrouillage
             self.assertIn("locked", str(e).lower())
+            # Vérifier que ce n'est pas une autre erreur
+            self.assertNotIn("no such table", str(e).lower())
+            self.assertNotIn("syntax error", str(e).lower())
         finally:
             conn1.execute("ROLLBACK")
             conn1.close()
