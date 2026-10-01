@@ -43,7 +43,7 @@ def extract_service_calls_from_file(filepath):
 
 def test_ui_service_calls_exist():
     """Vérifie que tous les appels de services dans l'UI sont valides."""
-    ui_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'ui')
+    ui_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ui')
 
     # Mapping des noms de services vers les classes
     service_classes = {
