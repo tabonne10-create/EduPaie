@@ -12,6 +12,7 @@ from edupaie.database.repositories.eleve_repository import EleveRepository
 from edupaie.database.repositories.compteur_recus_repository import CompteurRecusRepository
 from edupaie.database.repositories.parametre_repository import ParametreRepository
 from edupaie.database.transaction import transaction
+from edupaie.database.connection import readonly_connection
 from edupaie.services.validation import (
     valider_montant_positif,
     valider_date,
@@ -126,7 +127,7 @@ class PaiementService:
         Raises:
             ValidationError: Si l'élève n'existe pas
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             eleve_repo = EleveRepository(conn)
             paiement_repo = PaiementRepository(conn)
 
@@ -150,7 +151,7 @@ class PaiementService:
         Raises:
             ValidationError: Si le paiement n'existe pas
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             paiement_repo = PaiementRepository(conn)
             paiement = paiement_repo.trouver_par_id(paiement_id)
             if paiement is None:

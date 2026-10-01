@@ -7,6 +7,7 @@ en utilisant ClasseRepository et les fonctions de validation.
 
 from edupaie.database.repositories.classe_repository import ClasseRepository
 from edupaie.database.transaction import transaction
+from edupaie.database.connection import readonly_connection
 from edupaie.services.validation import valider_nom
 from edupaie.services.exceptions import ValidationError, RegleMetierError, ConfirmationRequise
 from edupaie.models.classe import Classe
@@ -95,7 +96,7 @@ class ClasseService:
         Returns:
             Liste des classes
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             repo = ClasseRepository(conn)
             return repo.lister()
 
@@ -112,7 +113,7 @@ class ClasseService:
         Raises:
             ValidationError: Si la classe n'existe pas
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             repo = ClasseRepository(conn)
             classe = repo.trouver_par_id(classe_id)
             if classe is None:

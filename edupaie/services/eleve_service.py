@@ -8,6 +8,7 @@ en utilisant EleveRepository et les fonctions de validation.
 from edupaie.database.repositories.eleve_repository import EleveRepository
 from edupaie.database.repositories.classe_repository import ClasseRepository
 from edupaie.database.transaction import transaction
+from edupaie.database.connection import readonly_connection
 from edupaie.services.validation import (
     valider_nom,
     valider_montant,
@@ -176,7 +177,7 @@ class EleveService:
         Raises:
             ValidationError: Si l'élève n'existe pas
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             eleve_repo = EleveRepository(conn)
             eleve = eleve_repo.trouver_par_id(eleve_id)
             if eleve is None:
@@ -200,7 +201,7 @@ class EleveService:
         Returns:
             Liste des élèves avec totaux
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             eleve_repo = EleveRepository(conn)
             eleves = eleve_repo.lister_avec_totaux(classe_id, recherche)
 
@@ -229,15 +230,16 @@ class EleveService:
         Raises:
             ValidationError: Si l'élève n'existe pas
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             eleve_repo = EleveRepository(conn)
-            eleve = eleve_repo.lister_avec_totaux(
-                filtre_eleve_id=eleve_id
-            )
-            if not eleve:
+            # D'abord trouver l'élève
+            eleve = eleve_repo.trouver_par_id(eleve_id)
+            if eleve is None:
                 raise ValidationError("Élève introuvable")
 
-            eleve_avec_totaux = eleve[0]
+            # Ensuite calculer le total payé
+            total_paye = eleve_repo.total_paye(eleve_id)
+
             from edupaie.services.calculs import determiner_statut
-            statut = determiner_statut(eleve_avec_totaux.eleve.total_du, eleve_avec_totaux.total_paye)
+            statut = determiner_statut(eleve.total_du, total_paye)
             return statut.value
