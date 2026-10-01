@@ -8,6 +8,8 @@ avec les configurations nécessaires (foreign_keys activés, row_factory).
 import sys
 import sqlite3
 import os
+from contextlib import contextmanager
+from typing import Generator
 from edupaie.utils.paths import get_database_path
 
 
@@ -29,6 +31,30 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+@contextmanager
+def readonly_connection() -> Generator[sqlite3.Connection, None, None]:
+    """
+    Contexte pour une connexion en lecture seule avec fermeture garantie.
+
+    Usage:
+        with readonly_connection() as conn:
+            # Opérations de lecture sur conn
+            pass
+
+    Yields:
+        sqlite3.Connection: Connexion pour lecture
+
+    Note:
+        La connexion est fermée automatiquement dans le finally,
+        même en cas d'erreur.
+    """
+    conn = get_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def init_database():
