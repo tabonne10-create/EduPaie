@@ -179,7 +179,7 @@ class ElevesView(QWidget):
             )
 
             # Obtenir la devise
-            devise = self.services['parametre'].lire("devise")
+            devise = self.services['parametre'].lire_parametre("devise")
             if not devise:
                 devise = "FCFA"
 
@@ -280,7 +280,7 @@ class ElevesView(QWidget):
 
         try:
             # Obtenir l'année scolaire courante
-            annee_courante = self.services['parametre'].lire("annee_scolaire_courante")
+            annee_courante = self.services['parametre'].lire_parametre("annee_scolaire_courante")
             if not annee_courante:
                 annee_courante = "2025-2026"
 
