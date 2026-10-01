@@ -7,7 +7,8 @@ la barre latérale de navigation et le conteneur de pages.
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QStackedWidget
+    QPushButton, QLabel, QStackedWidget, QComboBox,
+    QMessageBox
 )
 from PySide6.QtCore import Qt
 
@@ -144,10 +145,11 @@ class MainWindow(QMainWindow):
         self.eleves_page = ElevesView(self.services)
         self.stack.addWidget(self.eleves_page)
 
-        # Pages "à venir" (placeholders)
-        self.paiements_page = self._create_placeholder_page("Paiements")
+        # Page Paiements (choix d'un élève puis dialogue de paiement)
+        self.paiements_page = self._create_paiements_page()
         self.stack.addWidget(self.paiements_page)
 
+        # Pages "à venir" (placeholders)
         self.tableau_bord_page = self._create_placeholder_page("Tableau de bord")
         self.stack.addWidget(self.tableau_bord_page)
 
@@ -179,6 +181,41 @@ class MainWindow(QMainWindow):
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addWidget(label)
+        return page
+
+    def _create_paiements_page(self) -> QWidget:
+        """
+        Crée la page Paiements.
+
+        Cette page permet de choisir un élève puis d'enregistrer un paiement.
+        C'est une solution simple : on utilise la liste des élèves existante
+        et on ouvre directement le dialogue de paiement.
+
+        Returns:
+            QWidget: Page Paiements
+        """
+        from edupaie.ui.eleves_view import ElevesView
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+
+        # Titre
+        title_label = QLabel("Enregistrer un paiement")
+        title_label.setStyleSheet("font-size: 18px; font-weight: 600; color: #8B0000;")
+        layout.addWidget(title_label)
+
+        # Description
+        desc_label = QLabel("Sélectionnez un élève dans la liste ci-dessous, puis cliquez sur \"Fiche / Paiements\" ou double-cliquez pour enregistrer un paiement.")
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet("color: #666666;")
+        layout.addWidget(desc_label)
+
+        # Réutiliser la vue des élèves
+        self.eleves_view_for_paiements = ElevesView(self.services)
+        layout.addWidget(self.eleves_view_for_paiements)
+
         return page
 
     def _show_page(self, index: int):

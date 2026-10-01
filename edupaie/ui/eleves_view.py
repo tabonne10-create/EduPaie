@@ -111,9 +111,14 @@ class ElevesView(QWidget):
         self.btn_supprimer.clicked.connect(self._on_supprimer)
         self.btn_supprimer.setEnabled(False)
 
+        self.btn_fiche = QPushButton("Fiche / Paiements")
+        self.btn_fiche.clicked.connect(self._on_fiche)
+        self.btn_fiche.setEnabled(False)
+
         layout.addWidget(self.btn_ajouter)
         layout.addWidget(self.btn_modifier)
         layout.addWidget(self.btn_supprimer)
+        layout.addWidget(self.btn_fiche)
 
         return toolbar
 
@@ -145,6 +150,7 @@ class ElevesView(QWidget):
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         table.itemSelectionChanged.connect(self._on_selection_changed)
+        table.doubleClicked.connect(self._on_double_click)
 
         return table
 
@@ -272,6 +278,31 @@ class ElevesView(QWidget):
         has_selection = self.table.currentRow() >= 0
         self.btn_modifier.setEnabled(has_selection)
         self.btn_supprimer.setEnabled(has_selection)
+        self.btn_fiche.setEnabled(has_selection)
+
+    def _on_double_click(self):
+        """Gère le double-clic sur un élève."""
+        self._on_fiche()
+
+    def _on_fiche(self):
+        """Gère le clic sur le bouton Fiche / Paiements."""
+        from edupaie.ui.fiche_eleve import FicheEleveDialog
+
+        row = self.table.currentRow()
+        if row < 0:
+            return
+
+        try:
+            # Récupérer l'ID de l'élève
+            eleve_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+
+            dialog = FicheEleveDialog(self.services, eleve_id, self)
+            if dialog.exec():
+                # Rafraîchir la liste après un paiement
+                self._refresh_table()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de l'ouverture de la fiche : {str(e)}")
 
     def _on_ajouter(self):
         """Gère le clic sur le bouton Ajouter."""
