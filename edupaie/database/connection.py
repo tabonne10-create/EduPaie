@@ -59,7 +59,7 @@ def readonly_connection() -> Generator[sqlite3.Connection, None, None]:
 
 def init_database():
     """
-    Initialise la base de données si elle n'existe pas.
+    Initialise la base de données si elle n'existe pas ou si elle est vide.
 
     Lit le fichier schema.sql et exécute les commandes SQL pour créer
     les tables et insérer les données par défaut.
@@ -71,8 +71,27 @@ def init_database():
     """
     db_path = get_database_path()
 
-    # Si la base existe déjà, ne rien faire
-    if os.path.exists(db_path):
+    # Vérifier si la base doit être initialisée
+    needs_init = False
+
+    if not os.path.exists(db_path):
+        # Fichier inexistant
+        needs_init = True
+    else:
+        # Fichier existe : vérifier s'il contient des tables
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='classes'"
+        )
+        result = cursor.fetchone()
+        conn.close()
+
+        if result is None:
+            # Table 'classes' n'existe pas
+            needs_init = True
+
+    if not needs_init:
         return
 
     # Créer la base et exécuter le schéma
