@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 
 from edupaie.ui.styles import get_stylesheet
 
@@ -28,8 +29,19 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.services = services
         self.setWindowTitle("EduPaie")
-        self.resize(1000, 700)
         self.setStyleSheet(get_stylesheet())
+
+        # Adapter la taille à l'écran disponible
+        screen = QGuiApplication.primaryScreen()
+        available_geo = screen.availableGeometry()
+        initial_width = min(1100, available_geo.width())
+        initial_height = min(700, available_geo.height())
+        self.resize(initial_width, initial_height)
+
+        # Taille minimale adaptée à l'écran (pour petits écrans)
+        min_width = min(900, available_geo.width() - 50)
+        min_height = min(600, available_geo.height() - 50)
+        self.setMinimumSize(min_width, min_height)
 
         self._setup_ui()
         self._load_etablissement_name()
@@ -100,7 +112,8 @@ class MainWindow(QMainWindow):
         """
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(200)
+        sidebar.setMinimumWidth(120)
+        sidebar.setMaximumWidth(180)
 
         layout = QVBoxLayout(sidebar)
         layout.setContentsMargins(0, 20, 0, 20)
@@ -111,11 +124,17 @@ class MainWindow(QMainWindow):
         self.btn_paiements = self._create_nav_button("Paiements")
         self.btn_tableau_bord = self._create_nav_button("Tableau de bord")
         self.btn_recus = self._create_nav_button("Reçus")
+        self.btn_administration = self._create_nav_button("Administration")
+        self.btn_tuteurs = self._create_nav_button("Parents / tuteurs")
+        self.btn_classes = self._create_nav_button("Classes et salles")
 
         layout.addWidget(self.btn_eleves)
         layout.addWidget(self.btn_paiements)
         layout.addWidget(self.btn_tableau_bord)
         layout.addWidget(self.btn_recus)
+        layout.addWidget(self.btn_administration)
+        layout.addWidget(self.btn_tuteurs)
+        layout.addWidget(self.btn_classes)
 
         layout.addStretch()
 
@@ -158,11 +177,51 @@ class MainWindow(QMainWindow):
         self.recus_page = RecusView(self.services)
         self.stack.addWidget(self.recus_page)
 
+        session = self.services.get("session")
+        if session and session.autorise("classes.manage"):
+            from edupaie.ui.classes_salles_view import ClassesSallesView
+            self.classes_salles_page = ClassesSallesView(self.services)
+        else:
+            self.classes_salles_page = QWidget()
+        self.stack.addWidget(self.classes_salles_page)
+
+        if session and session.est_directeur and session.autorise("users.manage"):
+            from edupaie.ui.administration_view import AdministrationView
+            self.administration_page = AdministrationView(self.services)
+        else:
+            self.administration_page = QWidget()
+        self.stack.addWidget(self.administration_page)
+
+        from edupaie.ui.tuteurs_view import TuteursView
+        self.tuteurs_page = TuteursView(self.services)
+        self.stack.addWidget(self.tuteurs_page)
+
         # Connexion des boutons de navigation
-        self.btn_eleves.clicked.connect(lambda: self._show_page(0))
-        self.btn_paiements.clicked.connect(lambda: self._show_page(1))
-        self.btn_tableau_bord.clicked.connect(lambda: self._show_page(2))
-        self.btn_recus.clicked.connect(lambda: self._show_page(3))
+        self.navigation = [
+            (self.btn_eleves, 0, "students.view", "students"),
+            (self.btn_paiements, 1, "payments.view", "payments"),
+            (self.btn_tableau_bord, 2, "dashboard.view", "dashboard"),
+            (self.btn_recus, 3, "receipts.view", "receipts"),
+            (self.btn_classes, 4, "classes.manage", "classes"),
+            (self.btn_administration, 5, "users.manage", None),
+            (self.btn_tuteurs, 6, "guardians.manage", "guardians"),
+        ]
+        for button, index, _permission, _feature in self.navigation:
+            button.clicked.connect(lambda checked=False, page=index: self._show_page(page))
+        self._configurer_navigation()
+
+    def _configurer_navigation(self):
+        """Masque les pages non autorisées ou désactivées par le directeur."""
+        session = self.services.get("session")
+        visible_pages = []
+        for button, index, permission, feature in self.navigation:
+            autorise = session is not None and session.autorise(permission)
+            active = feature is None or self.services["auth"].fonctionnalite_active(feature)
+            button.setVisible(autorise and active)
+            if autorise and active:
+                visible_pages.append(index)
+        page_initiale = visible_pages[0] if visible_pages else 0
+        self._show_page(page_initiale)
 
     def _create_placeholder_page(self, title: str) -> QWidget:
         """
@@ -227,17 +286,19 @@ class MainWindow(QMainWindow):
         Args:
             index: Index de la page à afficher
         """
+        # Mettre à jour l'état actif des boutons
+        if hasattr(self, "navigation") and not any(
+            page == index and not button.isHidden()
+            for button, page, _permission, _feature in self.navigation
+        ):
+            return
         self.stack.setCurrentIndex(index)
 
-        # Mettre à jour l'état actif des boutons
-        buttons = [self.btn_eleves, self.btn_paiements, self.btn_tableau_bord, self.btn_recus]
-        for i, button in enumerate(buttons):
-            if i == index:
-                button.setProperty("active", True)
-            else:
-                button.setProperty("active", False)
-            button.style().unpolish(button)
-            button.style().polish(button)
+        if hasattr(self, "navigation"):
+            for button, page, _permission, _feature in self.navigation:
+                button.setProperty("active", page == index)
+                button.style().unpolish(button)
+                button.style().polish(button)
 
     def _load_etablissement_name(self):
         """Charge le nom de l'établissement depuis les paramètres."""

@@ -8,9 +8,10 @@ from datetime import date
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QComboBox, QDateEdit, QDialogButtonBox,
-    QMessageBox
+    QMessageBox, QTimeEdit
 )
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt, QDate, QTime
+from PySide6.QtGui import QGuiApplication
 
 from edupaie.services.exceptions import ValidationError, RegleMetierError
 from edupaie.utils.format import formater_montant
@@ -34,7 +35,13 @@ class PaiementDialog(QDialog):
         self.eleve_id = eleve_id
         self.paiement_enregistre = None
         self.setWindowTitle("Enregistrer un paiement")
-        self.setMinimumWidth(400)
+
+        # Adapter la taille à l'écran disponible
+        screen = QGuiApplication.primaryScreen()
+        available_geo = screen.availableGeometry()
+        initial_width = min(400, available_geo.width() - 50)
+        self.resize(initial_width, 300)
+        self.setMinimumSize(min(350, available_geo.width() - 100), 250)
 
         # Charger les données de l'élève
         self._load_eleve_data()
@@ -91,6 +98,15 @@ class PaiementDialog(QDialog):
         date_layout.addWidget(self.date_input)
         layout.addLayout(date_layout)
 
+        heure_layout = QHBoxLayout()
+        heure_label = QLabel("Heure :")
+        self.heure_input = QTimeEdit()
+        self.heure_input.setTime(QTime.currentTime())
+        self.heure_input.setDisplayFormat("HH:mm")
+        heure_layout.addWidget(heure_label)
+        heure_layout.addWidget(self.heure_input)
+        layout.addLayout(heure_layout)
+
         # Champ mode de paiement
         mode_layout = QHBoxLayout()
         mode_label = QLabel("Mode :")
@@ -99,9 +115,19 @@ class PaiementDialog(QDialog):
         self.mode_combo.addItem("Chèque", "cheque")
         self.mode_combo.addItem("Virement", "virement")
         self.mode_combo.addItem("Mobile Money", "mobile_money")
+        self.mode_combo.currentIndexChanged.connect(self._mettre_a_jour_payeur)
         mode_layout.addWidget(mode_label)
         mode_layout.addWidget(self.mode_combo)
         layout.addLayout(mode_layout)
+
+        payeur_layout = QHBoxLayout()
+        self.payeur_label = QLabel("Nom de l'envoyeur :")
+        self.payeur_input = QLineEdit()
+        self.payeur_input.setPlaceholderText("Facultatif, si différent de l'élève")
+        payeur_layout.addWidget(self.payeur_label)
+        payeur_layout.addWidget(self.payeur_input)
+        layout.addLayout(payeur_layout)
+        self._mettre_a_jour_payeur()
 
         layout.addStretch()
 
@@ -125,6 +151,12 @@ class PaiementDialog(QDialog):
         label.setStyleSheet("font-weight: 600; font-size: 14px;")
         return label
 
+    def _mettre_a_jour_payeur(self):
+        """Met en évidence le payeur pour les paiements non espèces."""
+        visible = self.mode_combo.currentData() != "especes"
+        self.payeur_label.setVisible(visible)
+        self.payeur_input.setVisible(visible)
+
     def _on_accept(self):
         """Gère la validation du dialogue."""
         # Récupérer les valeurs
@@ -140,6 +172,8 @@ class PaiementDialog(QDialog):
             return
 
         date_paiement = self.date_input.date().toString("yyyy-MM-dd")
+        heure_paiement = self.heure_input.time().toString("HH:mm:ss")
+        nom_payeur = self.payeur_input.text().strip()
         mode = self.mode_combo.currentData()
 
         # Enregistrer le paiement
@@ -148,7 +182,9 @@ class PaiementDialog(QDialog):
                 self.eleve_id,
                 montant,
                 date_paiement,
-                mode
+                mode,
+                heure_paiement,
+                nom_payeur,
             )
             self.paiement_enregistre = paiement
 

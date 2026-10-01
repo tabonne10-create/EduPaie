@@ -4,12 +4,15 @@ Vue de gestion des élèves.
 Ce module définit l'interface pour lister, filtrer et gérer les élèves.
 """
 
+from datetime import date
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
     QTableWidgetItem, QPushButton, QLineEdit, QComboBox,
-    QLabel, QMessageBox, QHeaderView
+    QLabel, QMessageBox, QHeaderView, QSizePolicy
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
 
 from edupaie.ui.styles import (
     COULEUR_SOLDE, COULEUR_NON_PAYE, COULEUR_PARTIEL,
@@ -30,11 +33,6 @@ class ElevesView(QWidget):
         """
         super().__init__()
         self.services = services
-        self.setStyleSheet("""
-            QWidget {{
-                background-color: #FFFFFF;
-            }}
-        """)
 
         self._setup_ui()
         self._load_data()
@@ -52,6 +50,13 @@ class ElevesView(QWidget):
         # Tableau des élèves
         self.table = self._create_table()
         layout.addWidget(self.table)
+        session = self.services.get("session")
+        if (
+            session and "enseignant" in session.roles
+            and not session.autorise("payments.view")
+        ):
+            for column in range(4, 8):
+                self.table.setColumnHidden(column, True)
 
     def _create_toolbar(self) -> QWidget:
         """
@@ -61,64 +66,86 @@ class ElevesView(QWidget):
             QWidget: Barre d'outils
         """
         toolbar = QWidget()
-        layout = QHBoxLayout(toolbar)
-        layout.setSpacing(12)
+        layout = QVBoxLayout(toolbar)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        filters_layout = QHBoxLayout()
+        filters_layout.setSpacing(8)
 
         # Recherche
         search_label = QLabel("Recherche:")
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Nom ou prénom...")
-        self.search_input.setFixedWidth(200)
+        self.search_input.setMinimumWidth(80)
         self.search_input.textChanged.connect(self._on_search_changed)
 
-        layout.addWidget(search_label)
-        layout.addWidget(self.search_input)
+        filters_layout.addWidget(search_label)
+        filters_layout.addWidget(self.search_input, 1)
 
         # Filtre par classe
         classe_label = QLabel("Classe:")
         self.classe_combo = QComboBox()
-        self.classe_combo.setFixedWidth(150)
+        self.classe_combo.setMinimumWidth(80)
         self.classe_combo.addItem("Toutes")
         self.classe_combo.currentIndexChanged.connect(self._on_filter_changed)
 
-        layout.addWidget(classe_label)
-        layout.addWidget(self.classe_combo)
+        filters_layout.addWidget(classe_label)
+        filters_layout.addWidget(self.classe_combo, 1)
 
         # Filtre par statut
         statut_label = QLabel("Statut:")
         self.statut_combo = QComboBox()
-        self.statut_combo.setFixedWidth(150)
+        self.statut_combo.setMinimumWidth(80)
         self.statut_combo.addItem("Tous")
         self.statut_combo.addItem("Soldé")
         self.statut_combo.addItem("Partiellement payé")
         self.statut_combo.addItem("Non payé")
         self.statut_combo.currentIndexChanged.connect(self._on_filter_changed)
 
-        layout.addWidget(statut_label)
-        layout.addWidget(self.statut_combo)
+        filters_layout.addWidget(statut_label)
+        filters_layout.addWidget(self.statut_combo, 1)
 
-        layout.addStretch()
+        layout.addLayout(filters_layout)
+
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(8)
+        actions_layout.addStretch()
 
         # Boutons d'action
         self.btn_ajouter = QPushButton("Ajouter")
+        self.btn_ajouter.setMinimumWidth(0)
         self.btn_ajouter.clicked.connect(self._on_ajouter)
 
         self.btn_modifier = QPushButton("Modifier")
+        self.btn_modifier.setMinimumWidth(0)
         self.btn_modifier.clicked.connect(self._on_modifier)
         self.btn_modifier.setEnabled(False)
 
         self.btn_supprimer = QPushButton("Supprimer")
+        self.btn_supprimer.setMinimumWidth(0)
         self.btn_supprimer.clicked.connect(self._on_supprimer)
         self.btn_supprimer.setEnabled(False)
 
         self.btn_fiche = QPushButton("Fiche / Paiements")
+        self.btn_fiche.setMinimumWidth(0)
         self.btn_fiche.clicked.connect(self._on_fiche)
         self.btn_fiche.setEnabled(False)
 
-        layout.addWidget(self.btn_ajouter)
-        layout.addWidget(self.btn_modifier)
-        layout.addWidget(self.btn_supprimer)
-        layout.addWidget(self.btn_fiche)
+        session = self.services.get("session")
+        if session is not None:
+            peut_gérer_eleves = session.autorise("students.manage")
+            self.btn_ajouter.setVisible(peut_gérer_eleves)
+            self.btn_modifier.setVisible(peut_gérer_eleves)
+            self.btn_supprimer.setVisible(peut_gérer_eleves)
+            self.btn_fiche.setVisible(session.autorise("payments.view"))
+            self.statut_combo.setVisible(session.autorise("payments.view"))
+
+        actions_layout.addWidget(self.btn_ajouter)
+        actions_layout.addWidget(self.btn_modifier)
+        actions_layout.addWidget(self.btn_supprimer)
+        actions_layout.addWidget(self.btn_fiche)
+        layout.addLayout(actions_layout)
 
         return toolbar
 
@@ -135,22 +162,31 @@ class ElevesView(QWidget):
             "Nom", "Prénom", "Classe", "Année",
             "Total dû", "Total payé", "Solde", "Statut"
         ])
+        table.setWordWrap(False)
+        table.setTextElideMode(Qt.TextElideMode.ElideRight)
         table.setStyleSheet("QTableWidget::item { padding: 2px 0; }")
 
         # Configuration des colonnes
         header = table.horizontalHeader()
         header.setMinimumSectionSize(60)
-        for column in range(table.columnCount() - 1):
-            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(
-            table.columnCount() - 1,
-            QHeaderView.ResizeMode.ResizeToContents
-        )
+
+        # Colonnes Nom et Prénom : Stretch avec largeur initiale plus généreuse
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.resizeSection(0, 150)  # Nom
+        header.resizeSection(1, 120)  # Prénom
+
+        # Colonnes fixes : ResizeToContents
+        for column in range(2, table.columnCount()):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
 
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         table.itemSelectionChanged.connect(self._on_selection_changed)
         table.doubleClicked.connect(self._on_double_click)
+
+        # Activer le scrollbar horizontal si nécessaire
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         return table
 
@@ -229,7 +265,7 @@ class ElevesView(QWidget):
             self.table.setItem(row, 5, QTableWidgetItem(total_paye))
 
             # Solde
-            solde = eleve.total_du - eleve_avec_totaux.total_paye
+            solde = max(0, eleve.total_du - eleve_avec_totaux.total_paye)
             solde_formatted = formater_montant(solde, devise)
             self.table.setItem(row, 6, QTableWidgetItem(solde_formatted))
 
@@ -254,6 +290,14 @@ class ElevesView(QWidget):
 
         badge = QLabel(statut.value)
         badge.setObjectName("status_badge")
+        badge.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        badge.setWordWrap(False)
+        badge.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+
+        # Largeur minimale pour afficher "Partiellement payé" en entier
+        font_metrics = QFontMetrics(badge.font())
+        text_width = font_metrics.horizontalAdvance("Partiellement payé")
+        badge.setMinimumWidth(text_width + 24)  # +24 pour le padding CSS (4px 12px)
 
         if statut.value == "Soldé":
             badge.setProperty("solde", True)
@@ -286,6 +330,9 @@ class ElevesView(QWidget):
 
     def _on_fiche(self):
         """Gère le clic sur le bouton Fiche / Paiements."""
+        session = self.services.get("session")
+        if session is not None and not session.autorise("payments.view"):
+            return
         from edupaie.ui.fiche_eleve import FicheEleveDialog
 
         row = self.table.currentRow()
@@ -313,7 +360,8 @@ class ElevesView(QWidget):
             # Obtenir l'année scolaire courante
             annee_courante = self.services['parametre'].lire_parametre("annee_scolaire_courante")
             if not annee_courante:
-                annee_courante = "2025-2026"
+                annee_debut = date.today().year if date.today().month >= 9 else date.today().year - 1
+                annee_courante = f"{annee_debut}-{annee_debut + 1}"
 
             form = EleveForm(self.services, annee_courante)
             if form.exec():

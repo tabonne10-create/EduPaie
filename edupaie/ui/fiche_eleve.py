@@ -8,9 +8,10 @@ et son historique de paiements.
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QPushButton, QMessageBox
+    QPushButton, QMessageBox, QWidget, QInputDialog
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 
 from edupaie.ui.styles import (
     COULEUR_SOLDE, COULEUR_NON_PAYE, COULEUR_PARTIEL,
@@ -36,8 +37,14 @@ class FicheEleveDialog(QDialog):
         self.services = services
         self.eleve_id = eleve_id
         self.setWindowTitle("Fiche élève")
-        self.setMinimumWidth(700)
-        self.setMinimumHeight(500)
+
+        # Adapter la taille à l'écran disponible
+        screen = QGuiApplication.primaryScreen()
+        available_geo = screen.availableGeometry()
+        initial_width = min(700, available_geo.width() - 50)
+        initial_height = min(500, available_geo.height() - 50)
+        self.resize(initial_width, initial_height)
+        self.setMinimumSize(min(600, available_geo.width() - 100), min(400, available_geo.height() - 100))
 
         self._fiche_chargee = self._load_data()
         if not self._fiche_chargee:
@@ -93,8 +100,6 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Section identité
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(4)
@@ -118,8 +123,6 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Section montants
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         widget.setObjectName("secondary_area")
         layout = QHBoxLayout(widget)
@@ -168,6 +171,13 @@ class FicheEleveDialog(QDialog):
         badge = QLabel(self.fiche['statut'])
         badge.setObjectName("status_badge")
 
+        # Largeur minimale pour afficher "Partiellement payé" en entier
+        from PySide6.QtGui import QFontMetrics
+        font = badge.font()
+        font_metrics = QFontMetrics(font)
+        text_width = font_metrics.horizontalAdvance("Partiellement payé")
+        badge.setMinimumWidth(text_width + 24)  # +24 pour le padding CSS (4px 12px)
+
         if self.fiche['statut'] == "Soldé":
             badge.setProperty("solde", True)
         elif self.fiche['statut'] == "Non payé":
@@ -186,18 +196,18 @@ class FicheEleveDialog(QDialog):
             QTableWidget: Tableau d'historique
         """
         table = QTableWidget()
-        table.setColumnCount(5)
+        table.setColumnCount(7)
         table.setHorizontalHeaderLabels([
-            "Date", "Montant", "Mode", "Numéro de reçu", "Solde après"
+            "Date", "Heure", "Montant", "Mode", "Numéro de reçu", "Payeur", "État"
         ])
 
         # Configuration des colonnes
         header = table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        for column in range(table.columnCount() - 1):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
 
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -224,27 +234,22 @@ class FicheEleveDialog(QDialog):
         table.setRowCount(len(paiements))
 
         for row, paiement in enumerate(paiements):
-            # Date
-            date_item = QTableWidgetItem(paiement.date_paiement)
-            table.setItem(row, 0, date_item)
-
-            # Montant
-            montant_item = QTableWidgetItem(formater_montant(paiement.montant, devise))
-            table.setItem(row, 1, montant_item)
-
-            # Mode (avec libellé accentué)
-            mode_libelle = self._get_mode_libelle(paiement.mode)
-            mode_item = QTableWidgetItem(mode_libelle)
-            table.setItem(row, 2, mode_item)
-
-            # Numéro de reçu
-            recu_item = QTableWidgetItem(paiement.numero_recu)
-            recu_item.setData(Qt.ItemDataRole.UserRole, paiement.id)
-            table.setItem(row, 3, recu_item)
-
-            # Solde après
-            solde_item = QTableWidgetItem(formater_montant(paiement.solde_apres, devise))
-            table.setItem(row, 4, solde_item)
+            valeurs = [
+                paiement.date_paiement,
+                paiement.heure_paiement[:5],
+                formater_montant(paiement.montant, devise),
+                self._get_mode_libelle(paiement.mode),
+                paiement.numero_recu,
+                paiement.nom_payeur or "—",
+                "Annulé" if paiement.est_annule else "Valide",
+            ]
+            for column, valeur in enumerate(valeurs):
+                item = QTableWidgetItem(valeur)
+                if column == 4:
+                    item.setData(Qt.ItemDataRole.UserRole, paiement.id)
+                if column == 6 and paiement.est_annule:
+                    item.setForeground(Qt.GlobalColor.darkRed)
+                table.setItem(row, column, item)
 
     def _get_mode_libelle(self, mode: str) -> str:
         """
@@ -271,16 +276,27 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Widget contenant les boutons
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QHBoxLayout(widget)
         layout.addStretch()
 
         # Bouton Nouveau paiement
         self.btn_nouveau_paiement = QPushButton("Nouveau paiement")
+        session = self.services.get("session")
+        self.btn_nouveau_paiement.setEnabled(
+            session is None or session.autorise("payments.register")
+        )
         self.btn_nouveau_paiement.clicked.connect(self._on_nouveau_paiement)
         layout.addWidget(self.btn_nouveau_paiement)
+
+        self.btn_annuler_paiement = QPushButton("Annuler le paiement")
+        self.btn_annuler_paiement.setProperty("secondary", True)
+        self.btn_annuler_paiement.setEnabled(False)
+        self.btn_annuler_paiement.setVisible(
+            bool(session and session.autorise("payments.cancel"))
+        )
+        self.btn_annuler_paiement.clicked.connect(self._on_annuler_paiement)
+        layout.addWidget(self.btn_annuler_paiement)
 
         # Exporter le reçu du paiement sélectionné
         self.btn_voir_recu = QPushButton("Exporter le reçu PDF")
@@ -316,7 +332,48 @@ class FicheEleveDialog(QDialog):
 
     def _on_historique_selection_changed(self):
         """Active l'export lorsqu'un paiement est sélectionné."""
-        self.btn_voir_recu.setEnabled(self.table.currentRow() >= 0)
+        row = self.table.currentRow()
+        self.btn_voir_recu.setEnabled(row >= 0)
+        if self.btn_annuler_paiement.isVisible():
+            paiement = self._paiement_selectionne()
+            self.btn_annuler_paiement.setEnabled(bool(paiement and not paiement.est_annule))
+
+    def _paiement_selectionne(self):
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        paiement_id = self.table.item(row, 4).data(Qt.ItemDataRole.UserRole)
+        return self._paiements_par_id.get(paiement_id)
+
+    def _on_annuler_paiement(self):
+        paiement = self._paiement_selectionne()
+        session = self.services.get("session")
+        if paiement is None or paiement.est_annule or session is None:
+            return
+        motif, ok = QInputDialog.getMultiLineText(
+            self,
+            "Annuler le paiement",
+            f"Motif obligatoire pour le reçu {paiement.numero_recu} :",
+        )
+        if not ok:
+            return
+        if not motif.strip():
+            QMessageBox.warning(self, "Motif requis", "Saisis le motif de l'annulation.")
+            return
+        confirmation = QMessageBox.question(
+            self,
+            "Confirmer l'annulation",
+            "Le paiement restera dans l'historique, marqué comme annulé. Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirmation != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.services["paiement"].annuler_paiement(paiement.id, session, motif)
+            if self._load_data():
+                self._refresh_ui()
+        except Exception as erreur:
+            QMessageBox.critical(self, "Annulation impossible", str(erreur))
 
     def _on_voir_recu(self):
         """Exporte le reçu du paiement sélectionné."""
@@ -324,16 +381,13 @@ class FicheEleveDialog(QDialog):
         if row < 0:
             return
 
-        paiement_id = self.table.item(row, 3).data(Qt.ItemDataRole.UserRole)
+        paiement_id = self.table.item(row, 4).data(Qt.ItemDataRole.UserRole)
         paiement = self._paiements_par_id.get(paiement_id)
         if paiement:
             proposer_export_recu(self, self.services, paiement, self.eleve_id)
 
     def _refresh_ui(self):
         """Rafraîchit l'interface après un paiement."""
-        # Recréer l'interface
-        from PySide6.QtWidgets import QWidget
-
         # Vider le layout actuel
         layout = self.layout()
         while layout.count():
