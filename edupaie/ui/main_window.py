@@ -81,9 +81,10 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(header)
         layout.setContentsMargins(20, 0, 20, 0)
 
-        title_label = QLabel("EduPaie")
-        title_label.setObjectName("app_title")
-        layout.addWidget(title_label)
+        self.title_label = QLabel("EduPaie")
+        self.title_label.setObjectName("app_title")
+        self.title_label.setStyleSheet("background-color: transparent;")
+        layout.addWidget(self.title_label)
 
         layout.addStretch()
 
@@ -204,8 +205,7 @@ class MainWindow(QMainWindow):
         try:
             nom = self.services['parametre'].lire("nom_etablissement")
             if nom:
-                title_label = self.header.findChild(QLabel, "app_title")
-                title_label.setText(nom)
+                self.title_label.setText(nom)
         except Exception:
             # En cas d'erreur, garder le titre par défaut
             pass
