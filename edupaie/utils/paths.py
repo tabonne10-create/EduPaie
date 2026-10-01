@@ -25,7 +25,8 @@ def get_app_directory():
         return os.path.dirname(sys.executable)
     else:
         # Exécution normale (développement)
-        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Remonter de 3 niveaux depuis edupaie/utils/paths.py vers la racine du projet
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def get_database_path():
