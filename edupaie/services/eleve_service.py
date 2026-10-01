@@ -243,3 +243,63 @@ class EleveService:
             from edupaie.services.calculs import determiner_statut
             statut = determiner_statut(eleve.total_du, total_paye)
             return statut.value
+
+    def fiche(self, eleve_id: int) -> dict:
+        """
+        Lit toutes les informations d'un élève pour sa fiche.
+
+        Args:
+            eleve_id: ID de l'élève
+
+        Returns:
+            Dictionnaire contenant:
+                - eleve: objet Eleve
+                - nom_classe: nom de la classe
+                - total_du: total dû
+                - total_paye: total payé
+                - solde: solde restant
+                - trop_percu: trop-perçu
+                - statut: statut de paiement
+                - paiements: liste des paiements chronologiques
+
+        Raises:
+            ValidationError: Si l'élève n'existe pas
+        """
+        with readonly_connection() as conn:
+            eleve_repo = EleveRepository(conn)
+            classe_repo = ClasseRepository(conn)
+            from edupaie.database.repositories.paiement_repository import PaiementRepository
+            paiement_repo = PaiementRepository(conn)
+
+            # Récupérer l'élève avec ses totaux
+            eleves_avec_totaux = eleve_repo.lister_avec_totaux(eleve_id=eleve_id)
+            if not eleves_avec_totaux:
+                raise ValidationError("Élève introuvable")
+
+            eleve_avec_totaux = eleves_avec_totaux[0]
+            eleve = eleve_avec_totaux.eleve
+            total_paye = eleve_avec_totaux.total_paye
+
+            # Récupérer le nom de la classe
+            classe = classe_repo.trouver_par_id(eleve.classe_id)
+            nom_classe = classe.nom if classe else "Inconnue"
+
+            # Calculer solde et trop-perçu
+            from edupaie.services.calculs import calculer_solde, calculer_trop_percu, determiner_statut
+            solde = calculer_solde(eleve.total_du, total_paye)
+            trop_percu = calculer_trop_percu(eleve.total_du, total_paye)
+            statut = determiner_statut(eleve.total_du, total_paye).value
+
+            # Récupérer les paiements chronologiques
+            paiements = paiement_repo.lister_par_eleve(eleve_id)
+
+            return {
+                "eleve": eleve,
+                "nom_classe": nom_classe,
+                "total_du": eleve.total_du,
+                "total_paye": total_paye,
+                "solde": solde,
+                "trop_percu": trop_percu,
+                "statut": statut,
+                "paiements": paiements
+            }
