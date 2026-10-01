@@ -55,9 +55,10 @@ class StatistiquesService:
 
             total_du = int(stats["total_du"])
             total_paye = int(stats["total_encaisse"])
-            total_solde = total_du - total_paye
-            if total_solde < 0:
-                total_solde = 0  # Borné à 0 en cas de trop-perçu
+            total_solde = sum(
+                max(0, eleve.eleve.total_du - eleve.total_paye)
+                for eleve in eleves
+            )
 
             return {
                 "total_eleves": int(stats["nombre_eleves"]),
@@ -87,7 +88,10 @@ class StatistiquesService:
 
             total_du = sum(e.eleve.total_du for e in eleves)
             total_paye = sum(e.total_paye for e in eleves)
-            total_solde = sum(e.eleve.total_du - e.total_paye for e in eleves)
+            total_solde = sum(
+                max(0, e.eleve.total_du - e.total_paye)
+                for e in eleves
+            )
 
             eleves_soldes = 0
             eleves_partiellement_payes = 0

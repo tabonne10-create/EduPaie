@@ -30,11 +30,10 @@ class StatistiquesRepository:
         """
         query = """
             SELECT 
-                COUNT(DISTINCT e.id) as nombre_eleves,
+                COUNT(*) as nombre_eleves,
                 COALESCE(SUM(e.total_du), 0) as total_du,
-                COALESCE(SUM(p.montant), 0) as total_encaisse
+                (SELECT COALESCE(SUM(montant), 0) FROM paiements) as total_encaisse
             FROM eleves e
-            LEFT JOIN paiements p ON e.id = p.eleve_id
         """
         cursor = self.conn.execute(query)
         row = cursor.fetchone()

@@ -149,11 +149,13 @@ class MainWindow(QMainWindow):
         self.paiements_page = self._create_paiements_page()
         self.stack.addWidget(self.paiements_page)
 
-        # Pages "à venir" (placeholders)
-        self.tableau_bord_page = self._create_placeholder_page("Tableau de bord")
+        # Page de synthèse des paiements et effectifs
+        from edupaie.ui.tableau_bord import TableauBord
+        self.tableau_bord_page = TableauBord(self.services)
         self.stack.addWidget(self.tableau_bord_page)
 
-        self.recus_page = self._create_placeholder_page("Reçus")
+        from edupaie.ui.recus_view import RecusView
+        self.recus_page = RecusView(self.services)
         self.stack.addWidget(self.recus_page)
 
         # Connexion des boutons de navigation

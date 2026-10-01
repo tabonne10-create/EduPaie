@@ -61,6 +61,7 @@ class TestStatistiquesService(unittest.TestCase):
         eleve1 = eleve_repo.creer("Dupont", "Jean", classe.id, "2025-2026", 150000)
 
         paiement_repo.inserer(eleve1.id, 200000, "2025-09-30", "especes", "REC-2025-000001", 0)
+        paiement_repo.inserer(eleve1.id, 10000, "2025-10-01", "especes", "REC-2025-000003", 0)
 
 
         # Élève 2 : soldé exact
@@ -68,16 +69,19 @@ class TestStatistiquesService(unittest.TestCase):
 
         paiement_repo.inserer(eleve2.id, 150000, "2025-09-30", "especes", "REC-2025-000002", 0)
 
+        # Élève 3 : aucun paiement, sa dette ne doit pas être compensée par le trop-perçu d'un autre.
+        eleve3 = eleve_repo.creer("Sow", "Awa", classe.id, "2025-2026", 50000)
+
 
         # Tester le service
         service = StatistiquesService()
         result = service.obtenir_statistiques_globales()
 
         # Vérifier que le solde est borné à 0 (pas négatif malgré le trop-perçu)
-        self.assertEqual(result["total_solde"], 0)
-        self.assertEqual(result["total_paye"], 350000)
-        self.assertEqual(result["total_du"], 300000)
-        self.assertEqual(result["total_eleves"], 2)
+        self.assertEqual(result["total_solde"], 50000)
+        self.assertEqual(result["total_paye"], 360000)
+        self.assertEqual(result["total_du"], 350000)
+        self.assertEqual(result["total_eleves"], 3)
 
 
 if __name__ == "__main__":

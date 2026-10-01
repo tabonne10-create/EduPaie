@@ -138,6 +138,13 @@ class PaiementService:
 
             return paiement_repo.lister_par_eleve(eleve_id)
 
+    def lister_tous_paiements(self, recherche: str = None,
+                              mode: str = None):
+        """Liste les paiements du registre global, avec recherche facultative."""
+        with readonly_connection() as conn:
+            paiement_repo = PaiementRepository(conn)
+            return paiement_repo.lister_tous(recherche=recherche, mode=mode)
+
     def trouver_paiement(self, paiement_id: int) -> Paiement:
         """
         Trouve un paiement par son ID.

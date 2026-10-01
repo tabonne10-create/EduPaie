@@ -5,6 +5,7 @@ Repository pour la gestion des paiements.
 import sqlite3
 from typing import List, Optional
 from edupaie.models.paiement import Paiement
+from edupaie.models.paiement_liste import PaiementListe
 from edupaie.database.errors import PaiementRepositoryError
 
 
@@ -84,6 +85,48 @@ class PaiementRepository:
             )
             for row in cursor.fetchall()
         ]
+
+    def lister_tous(self, recherche: Optional[str] = None,
+                    mode: Optional[str] = None) -> List[PaiementListe]:
+        """Liste les paiements avec l'élève et la classe pour le registre des reçus."""
+        query = (
+            "SELECT p.id, p.eleve_id, p.montant, p.date_paiement, p.mode, "
+            "p.numero_recu, p.solde_apres, p.cree_le, "
+            "e.nom AS nom_eleve, e.prenom AS prenom_eleve, c.nom AS nom_classe "
+            "FROM paiements p "
+            "JOIN eleves e ON e.id = p.eleve_id "
+            "JOIN classes c ON c.id = e.classe_id"
+        )
+        conditions = []
+        params = []
+        if recherche:
+            motif = f"%{recherche.strip()}%"
+            conditions.append(
+                "(p.numero_recu LIKE ? OR e.nom LIKE ? OR e.prenom LIKE ? "
+                "OR c.nom LIKE ?)"
+            )
+            params.extend([motif, motif, motif, motif])
+        if mode:
+            conditions.append("p.mode = ?")
+            params.append(mode)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY p.date_paiement DESC, p.cree_le DESC, p.id DESC"
+
+        cursor = self.conn.execute(query, params)
+        lignes = []
+        for row in cursor.fetchall():
+            paiement = Paiement(
+                row["id"], row["eleve_id"], row["montant"], row["date_paiement"],
+                row["mode"], row["numero_recu"], row["solde_apres"], row["cree_le"],
+            )
+            lignes.append(PaiementListe(
+                paiement=paiement,
+                nom_eleve=row["nom_eleve"],
+                prenom_eleve=row["prenom_eleve"],
+                nom_classe=row["nom_classe"],
+            ))
+        return lignes
     
     def trouver_par_numero(self, numero_recu: str) -> Optional[Paiement]:
         """
