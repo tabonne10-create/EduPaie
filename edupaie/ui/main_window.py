@@ -196,8 +196,8 @@ class MainWindow(QMainWindow):
                 button.setProperty("active", True)
             else:
                 button.setProperty("active", False)
-            button.style().unpolish()
-            button.style().polish()
+            button.style().unpolish(button)
+            button.style().polish(button)
 
     def _load_etablissement_name(self):
         """Charge le nom de l'établissement depuis les paramètres."""
