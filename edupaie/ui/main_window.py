@@ -203,7 +203,7 @@ class MainWindow(QMainWindow):
     def _load_etablissement_name(self):
         """Charge le nom de l'établissement depuis les paramètres."""
         try:
-            nom = self.services['parametre'].lire("nom_etablissement")
+            nom = self.services['parametre'].lire_parametre("nom_etablissement")
             if nom:
                 self.title_label.setText(nom)
         except Exception:
