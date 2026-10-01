@@ -135,17 +135,17 @@ class ElevesView(QWidget):
             "Nom", "Prénom", "Classe", "Année",
             "Total dû", "Total payé", "Solde", "Statut"
         ])
+        table.setStyleSheet("QTableWidget::item { padding: 2px 0; }")
 
         # Configuration des colonnes
         header = table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        header.setMinimumSectionSize(60)
+        for column in range(table.columnCount() - 1):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(
+            table.columnCount() - 1,
+            QHeaderView.ResizeMode.ResizeToContents
+        )
 
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
