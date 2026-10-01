@@ -103,7 +103,7 @@ class PaiementService:
             numero_recu = formater_numero_recu(prefixe, annee_courante, numero)
 
             # Insérer le paiement
-            paiement_id = paiement_repo.inserer(
+            paiement = paiement_repo.inserer(
                 eleve_id,
                 montant,
                 date_paiement,
@@ -112,7 +112,7 @@ class PaiementService:
                 nouveau_solde
             )
 
-            return paiement_repo.trouver_par_id(paiement_id)
+            return paiement
 
     def lister_paiements_eleve(self, eleve_id: int) -> list[Paiement]:
         """

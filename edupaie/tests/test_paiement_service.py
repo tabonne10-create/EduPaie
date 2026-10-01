@@ -10,6 +10,19 @@ from edupaie.models.paiement import Paiement
 from edupaie.models.eleve import Eleve
 
 
+def _paiement_insere(*args):
+    return Paiement(
+        id=1,
+        eleve_id=args[0],
+        montant=args[1],
+        date_paiement=args[2],
+        mode=args[3],
+        numero_recu=args[4],
+        solde_apres=args[5],
+        cree_le=None,
+    )
+
+
 class TestPaiementService(unittest.TestCase):
     """Tests du service de gestion des paiements."""
 
@@ -131,7 +144,7 @@ class TestPaiementService(unittest.TestCase):
             mock_paiement_repo.lister_par_eleve.return_value = [mock_paiement]
 
             # Mock insertion
-            mock_paiement_repo.inserer.return_value = 1
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_retourne = MagicMock(
                 id=1,
                 montant=50000,
@@ -190,7 +203,7 @@ class TestPaiementService(unittest.TestCase):
 
             # Premier paiement : compteur retourne 1
             mock_compteur_repo.incrementer.return_value = 1
-            mock_paiement_repo.inserer.return_value = 1
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_repo.trouver_par_id.return_value = MagicMock(
                 numero_recu="REC-2025-000001"
             )
@@ -200,7 +213,7 @@ class TestPaiementService(unittest.TestCase):
 
             # Deuxième paiement : compteur retourne 2
             mock_compteur_repo.incrementer.return_value = 2
-            mock_paiement_repo.inserer.return_value = 2
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_repo.trouver_par_id.return_value = MagicMock(
                 numero_recu="REC-2025-000002"
             )
@@ -243,7 +256,7 @@ class TestPaiementService(unittest.TestCase):
             )
             mock_paiement_repo.lister_par_eleve.return_value = []
             mock_compteur_repo.incrementer.return_value = 1
-            mock_paiement_repo.inserer.return_value = 1
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_repo.trouver_par_id.return_value = MagicMock(
                 numero_recu="FAC-2025-000001"
             )
@@ -290,7 +303,7 @@ class TestPaiementService(unittest.TestCase):
             )
             mock_paiement_repo.lister_par_eleve.return_value = []
             mock_parametre_repo.lire.return_value = "REC"
-            mock_paiement_repo.inserer.return_value = 1
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_repo.trouver_par_id.return_value = MagicMock(
                 numero_recu="REC-2025-000001"
             )
@@ -328,7 +341,7 @@ class TestPaiementService(unittest.TestCase):
             )
             mock_paiement_repo.lister_par_eleve.return_value = []
             mock_parametre_repo.lire.return_value = "REC"
-            mock_paiement_repo.inserer.return_value = 2
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_repo.trouver_par_id.return_value = MagicMock(
                 numero_recu="REC-2026-000001"
             )
@@ -374,7 +387,7 @@ class TestPaiementService(unittest.TestCase):
             )
             mock_paiement_repo.lister_par_eleve.return_value = []
             mock_parametre_repo.lire.return_value = "REC"
-            mock_paiement_repo.inserer.return_value = 1
+            mock_paiement_repo.inserer.side_effect = _paiement_insere
             mock_paiement_repo.trouver_par_id.return_value = MagicMock(
                 numero_recu="REC-2026-000001"
             )

@@ -194,14 +194,10 @@ class TestEleveService(unittest.TestCase):
             from edupaie.models.eleve_avec_totaux import EleveAvecTotaux
             from edupaie.models.paiement import Paiement
 
-            # Mock élève avec totaux
+            # Mock élève et total payé
             mock_eleve = Eleve(id=1, nom="Dupont", prenom="Jean", classe_id=1, annee_scolaire="2025-2026", total_du=150000)
-            mock_eleve_avec_totaux = EleveAvecTotaux(
-                eleve=mock_eleve,
-                nom_classe="6ème A",
-                total_paye=50000
-            )
-            mock_eleve_repo.lister_avec_totaux.return_value = [mock_eleve_avec_totaux]
+            mock_eleve_repo.trouver_par_id.return_value = mock_eleve
+            mock_eleve_repo.total_paye.return_value = 50000
 
             # Mock classe
             mock_classe = MagicMock(id=1, nom="6ème A")
@@ -253,12 +249,8 @@ class TestEleveService(unittest.TestCase):
 
             # Mock élève avec trop-perçu
             mock_eleve = Eleve(id=1, nom="Dupont", prenom="Jean", classe_id=1, annee_scolaire="2025-2026", total_du=150000)
-            mock_eleve_avec_totaux = EleveAvecTotaux(
-                eleve=mock_eleve,
-                nom_classe="6ème A",
-                total_paye=180000  # Trop-perçu de 30000
-            )
-            mock_eleve_repo.lister_avec_totaux.return_value = [mock_eleve_avec_totaux]
+            mock_eleve_repo.trouver_par_id.return_value = mock_eleve
+            mock_eleve_repo.total_paye.return_value = 180000  # Trop-perçu de 30000
 
             mock_classe_repo.trouver_par_id.return_value = MagicMock(id=1, nom="6ème A")
             mock_paiement_repo.lister_par_eleve.return_value = []
@@ -281,7 +273,7 @@ class TestEleveService(unittest.TestCase):
         with patch('edupaie.services.eleve_service.EleveRepository') as mock_eleve_repo_class:
             mock_eleve_repo = MagicMock()
             mock_eleve_repo_class.return_value = mock_eleve_repo
-            mock_eleve_repo.lister_avec_totaux.return_value = []
+            mock_eleve_repo.trouver_par_id.return_value = None
 
             with self.assertRaises(ValidationError) as context:
                 service.fiche(999)

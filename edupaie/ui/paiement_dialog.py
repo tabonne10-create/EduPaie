@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt, QDate
 
 from edupaie.services.exceptions import ValidationError, RegleMetierError
 from edupaie.utils.format import formater_montant
+from edupaie.ui.recu_export import proposer_export_recu
 
 
 class PaiementDialog(QDialog):
@@ -31,6 +32,7 @@ class PaiementDialog(QDialog):
         super().__init__(parent)
         self.services = services
         self.eleve_id = eleve_id
+        self.paiement_enregistre = None
         self.setWindowTitle("Enregistrer un paiement")
         self.setMinimumWidth(400)
 
@@ -148,6 +150,7 @@ class PaiementDialog(QDialog):
                 date_paiement,
                 mode
             )
+            self.paiement_enregistre = paiement
 
             devise = self.services['parametre'].lire_parametre("devise")
             if not devise:
@@ -160,6 +163,7 @@ class PaiementDialog(QDialog):
                 f"Numéro de reçu : {paiement.numero_recu}\n"
                 f"Montant : {formater_montant(montant, devise)}"
             )
+            proposer_export_recu(self, self.services, paiement, self.eleve_id)
             self.accept()
 
         except RegleMetierError as e:

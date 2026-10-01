@@ -271,14 +271,12 @@ class EleveService:
             from edupaie.database.repositories.paiement_repository import PaiementRepository
             paiement_repo = PaiementRepository(conn)
 
-            # Récupérer l'élève avec ses totaux
-            eleves_avec_totaux = eleve_repo.lister_avec_totaux(eleve_id=eleve_id)
-            if not eleves_avec_totaux:
+            # Récupérer l'élève et son total payé avec les méthodes dédiées.
+            eleve = eleve_repo.trouver_par_id(eleve_id)
+            if eleve is None:
                 raise ValidationError("Élève introuvable")
 
-            eleve_avec_totaux = eleves_avec_totaux[0]
-            eleve = eleve_avec_totaux.eleve
-            total_paye = eleve_avec_totaux.total_paye
+            total_paye = eleve_repo.total_paye(eleve_id)
 
             # Récupérer le nom de la classe
             classe = classe_repo.trouver_par_id(eleve.classe_id)

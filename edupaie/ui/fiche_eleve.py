@@ -17,6 +17,7 @@ from edupaie.ui.styles import (
     COULEUR_TEXTE
 )
 from edupaie.utils.format import formater_montant
+from edupaie.ui.recu_export import proposer_export_recu
 
 
 class FicheEleveDialog(QDialog):
@@ -38,16 +39,26 @@ class FicheEleveDialog(QDialog):
         self.setMinimumWidth(700)
         self.setMinimumHeight(500)
 
-        self._load_data()
+        self._fiche_chargee = self._load_data()
+        if not self._fiche_chargee:
+            self.reject()
+            return
         self._setup_ui()
+
+    def exec(self):
+        """N'ouvre pas le dialogue si la fiche n'a pas pu être chargée."""
+        if not self._fiche_chargee:
+            return int(QDialog.DialogCode.Rejected)
+        return super().exec()
 
     def _load_data(self):
         """Charge les données de l'élève."""
         try:
             self.fiche = self.services['eleve'].fiche(self.eleve_id)
+            return True
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors du chargement de la fiche : {str(e)}")
-            self.reject()
+            return False
 
     def _setup_ui(self):
         """Configure l'interface utilisateur."""
@@ -190,6 +201,7 @@ class FicheEleveDialog(QDialog):
 
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        table.itemSelectionChanged.connect(self._on_historique_selection_changed)
 
         # Remplir avec les paiements
         self._populate_historique_table(table)
@@ -204,6 +216,7 @@ class FicheEleveDialog(QDialog):
             table: TableWidget à remplir
         """
         paiements = self.fiche['paiements']
+        self._paiements_par_id = {paiement.id: paiement for paiement in paiements}
         devise = self.services['parametre'].lire_parametre("devise")
         if not devise:
             devise = "FCFA"
@@ -226,6 +239,7 @@ class FicheEleveDialog(QDialog):
 
             # Numéro de reçu
             recu_item = QTableWidgetItem(paiement.numero_recu)
+            recu_item.setData(Qt.ItemDataRole.UserRole, paiement.id)
             table.setItem(row, 3, recu_item)
 
             # Solde après
@@ -268,10 +282,11 @@ class FicheEleveDialog(QDialog):
         self.btn_nouveau_paiement.clicked.connect(self._on_nouveau_paiement)
         layout.addWidget(self.btn_nouveau_paiement)
 
-        # Bouton Voir le reçu (désactivé pour l'étape 6)
-        self.btn_voir_recu = QPushButton("Voir le reçu")
+        # Exporter le reçu du paiement sélectionné
+        self.btn_voir_recu = QPushButton("Exporter le reçu PDF")
         self.btn_voir_recu.setEnabled(False)
-        self.btn_voir_recu.setToolTip("Disponible à l'étape 6")
+        self.btn_voir_recu.setToolTip("Sélectionnez un paiement dans l'historique")
+        self.btn_voir_recu.clicked.connect(self._on_voir_recu)
         layout.addWidget(self.btn_voir_recu)
 
         # Bouton Fermer
@@ -288,8 +303,31 @@ class FicheEleveDialog(QDialog):
         dialog = PaiementDialog(self.services, self.eleve_id, self)
         if dialog.exec():
             # Paiement enregistré, recharger les données
-            self._load_data()
+            if not self._load_data():
+                return
             self._refresh_ui()
+            paiement = dialog.paiement_enregistre
+            if paiement:
+                for row in range(self.table.rowCount()):
+                    recu_item = self.table.item(row, 3)
+                    if recu_item.data(Qt.ItemDataRole.UserRole) == paiement.id:
+                        self.table.selectRow(row)
+                        break
+
+    def _on_historique_selection_changed(self):
+        """Active l'export lorsqu'un paiement est sélectionné."""
+        self.btn_voir_recu.setEnabled(self.table.currentRow() >= 0)
+
+    def _on_voir_recu(self):
+        """Exporte le reçu du paiement sélectionné."""
+        row = self.table.currentRow()
+        if row < 0:
+            return
+
+        paiement_id = self.table.item(row, 3).data(Qt.ItemDataRole.UserRole)
+        paiement = self._paiements_par_id.get(paiement_id)
+        if paiement:
+            proposer_export_recu(self, self.services, paiement, self.eleve_id)
 
     def _refresh_ui(self):
         """Rafraîchit l'interface après un paiement."""
