@@ -16,7 +16,8 @@ from edupaie.database.connection import readonly_connection
 from edupaie.services.validation import (
     valider_montant_positif,
     valider_date,
-    valider_mode_paiement
+    valider_mode_paiement,
+    valider_heure_paiement,
 )
 from edupaie.services.exceptions import ValidationError, RegleMetierError
 from edupaie.models.paiement import Paiement
@@ -34,13 +35,16 @@ class PaiementService:
             aujourdhui: Fonction retournant la date du jour (pour tests). Par défaut date.today().
         """
         self.aujourdhui = aujourdhui or date.today
+        self.session = None
 
     def enregistrer_paiement(
         self,
         eleve_id: int,
         montant: int,
         date_paiement: str,
-        mode: str
+        mode: str,
+        heure_paiement: str = "00:00:00",
+        nom_payeur: str = "",
     ) -> Paiement:
         """
         Enregistre un nouveau paiement.
@@ -58,9 +62,13 @@ class PaiementService:
             ValidationError: Si les données sont invalides
             RegleMetierError: Si les règles métier sont violées
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("payments.register"):
+            raise ValidationError("Permission requise pour enregistrer un paiement")
         valider_montant_positif(montant, "Montant")
         valider_date(date_paiement)
         valider_mode_paiement(mode)
+        valider_heure_paiement(heure_paiement)
 
         with transaction() as conn:
             eleve_repo = EleveRepository(conn)
@@ -109,7 +117,9 @@ class PaiementService:
                 date_paiement,
                 mode,
                 numero_recu,
-                nouveau_solde
+                nouveau_solde,
+                heure_paiement,
+                nom_payeur,
             )
 
             return paiement
@@ -127,6 +137,9 @@ class PaiementService:
         Raises:
             ValidationError: Si l'élève n'existe pas
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("payments.view"):
+            raise ValidationError("Permission requise pour consulter les paiements")
         with readonly_connection() as conn:
             eleve_repo = EleveRepository(conn)
             paiement_repo = PaiementRepository(conn)
@@ -141,6 +154,9 @@ class PaiementService:
     def lister_tous_paiements(self, recherche: str = None,
                               mode: str = None):
         """Liste les paiements du registre global, avec recherche facultative."""
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("receipts.view"):
+            raise ValidationError("Permission requise pour consulter le registre des reçus")
         with readonly_connection() as conn:
             paiement_repo = PaiementRepository(conn)
             return paiement_repo.lister_tous(recherche=recherche, mode=mode)
@@ -165,26 +181,32 @@ class PaiementService:
                 raise ValidationError("Paiement introuvable")
             return paiement
 
-    def annuler_paiement(self, paiement_id: int) -> None:
-        """
-        Annule un paiement (suppression).
+    def annuler_paiement(self, paiement_id: int, session, motif: str) -> None:
+        """Annule un paiement en gardant l'opération et son auteur dans l'audit.
 
         Args:
             paiement_id: ID du paiement
+            session: Session de l'utilisateur qui effectue l'annulation
+            motif: Motif obligatoire pour l'audit
 
         Raises:
             ValidationError: Si le paiement n'existe pas
             RegleMetierError: Si l'annulation violerait une règle métier
         """
+        if session is None or not session.autorise("payments.cancel"):
+            raise ValidationError("Permission requise pour annuler un paiement")
+        if not motif or not motif.strip():
+            raise ValidationError("Le motif d'annulation est obligatoire")
+
         with transaction() as conn:
+            eleve_repo = EleveRepository(conn)
             paiement_repo = PaiementRepository(conn)
             # Vérifier que le paiement existe
             paiement = paiement_repo.trouver_par_id(paiement_id)
             if paiement is None:
                 raise ValidationError("Paiement introuvable")
 
-            # Règle métier : vérifier que l'annulation est acceptable
-            # (par exemple, pas d'annulation après un certain délai)
-            # Pour l'instant, on autorise toujours
-
-            paiement_repo.supprimer(paiement_id)
+            paiement_repo.annuler(paiement_id, session.id, motif)
+            eleve = eleve_repo.trouver_par_id(paiement.eleve_id)
+            if eleve is not None:
+                paiement_repo.recalculer_soldes_actifs(eleve.id, eleve.total_du)

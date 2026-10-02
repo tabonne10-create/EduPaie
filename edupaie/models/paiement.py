@@ -17,3 +17,12 @@ class Paiement:
     numero_recu: str  # Format : PREFIXE-AAAA-000001
     solde_apres: int  # Solde figé au moment du paiement (en FCFA)
     cree_le: str  # Date/heure de création (ISO, UTC)
+    heure_paiement: str = "00:00:00"
+    nom_payeur: str = ""
+    annule_le: str | None = None
+    annule_par: int | None = None
+    motif_annulation: str | None = None
+
+    @property
+    def est_annule(self) -> bool:
+        return self.annule_le is not None

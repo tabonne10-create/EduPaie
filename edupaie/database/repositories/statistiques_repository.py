@@ -32,7 +32,7 @@ class StatistiquesRepository:
             SELECT 
                 COUNT(*) as nombre_eleves,
                 COALESCE(SUM(e.total_du), 0) as total_du,
-                (SELECT COALESCE(SUM(montant), 0) FROM paiements) as total_encaisse
+                (SELECT COALESCE(SUM(montant), 0) FROM paiements WHERE annule_le IS NULL) as total_encaisse
             FROM eleves e
         """
         cursor = self.conn.execute(query)

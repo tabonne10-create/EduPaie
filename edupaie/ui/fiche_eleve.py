@@ -70,8 +70,8 @@ class FicheEleveDialog(QDialog):
     def _setup_ui(self):
         """Configure l'interface utilisateur."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        layout.setContentsMargins(24, 24, 24, 24)
 
         # Section identité
         identite_layout = self._create_identite_section()
@@ -83,7 +83,7 @@ class FicheEleveDialog(QDialog):
 
         # Section historique
         historique_label = QLabel("Historique des paiements")
-        historique_label.setStyleSheet("font-weight: 600; font-size: 14px; color: #8B0000;")
+        historique_label.setStyleSheet("font-weight: 700; font-size: 14px; color: #8B0000;")
         layout.addWidget(historique_label)
 
         self.table = self._create_historique_table()
@@ -101,17 +101,18 @@ class FicheEleveDialog(QDialog):
             QWidget: Section identité
         """
         widget = QWidget()
+        widget.setObjectName("secondary_area")
         layout = QVBoxLayout(widget)
         layout.setSpacing(4)
 
         # Nom et prénom
         nom_label = QLabel(f"{self.fiche['eleve'].nom} {self.fiche['eleve'].prenom}")
-        nom_label.setStyleSheet("font-size: 18px; font-weight: 700; color: #8B0000;")
+        nom_label.setStyleSheet("font-size: 16px; font-weight: 700; color: #8B0000;")
         layout.addWidget(nom_label)
 
         # Classe et année
         info_label = QLabel(f"{self.fiche['nom_classe']} - {self.fiche['eleve'].annee_scolaire}")
-        info_label.setStyleSheet("color: #666666;")
+        info_label.setStyleSheet("color: #666666; font-size: 12px;")
         layout.addWidget(info_label)
 
         return widget
@@ -126,7 +127,7 @@ class FicheEleveDialog(QDialog):
         widget = QWidget()
         widget.setObjectName("secondary_area")
         layout = QHBoxLayout(widget)
-        layout.setSpacing(24)
+        layout.setSpacing(28)
 
         devise = self.services['parametre'].lire_parametre("devise")
         if not devise:
@@ -134,17 +135,17 @@ class FicheEleveDialog(QDialog):
 
         # Total dû
         total_du_label = QLabel(f"Total dû : {formater_montant(self.fiche['total_du'], devise)}")
-        total_du_label.setStyleSheet("font-weight: 600;")
+        total_du_label.setStyleSheet("font-weight: 600; color: #1E293B; font-size: 14px;")
         layout.addWidget(total_du_label)
 
         # Total payé
         total_paye_label = QLabel(f"Total payé : {formater_montant(self.fiche['total_paye'], devise)}")
-        total_paye_label.setStyleSheet("font-weight: 600;")
+        total_paye_label.setStyleSheet("font-weight: 600; color: #1E293B; font-size: 14px;")
         layout.addWidget(total_paye_label)
 
         # Solde
         solde_label = QLabel(f"Solde : {formater_montant(self.fiche['solde'], devise)}")
-        solde_label.setStyleSheet("font-weight: 600;")
+        solde_label.setStyleSheet("font-weight: 600; color: #1E293B; font-size: 14px;")
         layout.addWidget(solde_label)
 
         # Statut (pastille + texte)
@@ -154,7 +155,7 @@ class FicheEleveDialog(QDialog):
         # Trop-perçu si applicable
         if self.fiche['trop_percu'] > 0:
             trop_percu_label = QLabel(f"(Trop-perçu : {formater_montant(self.fiche['trop_percu'], devise)})")
-            trop_percu_label.setStyleSheet("color: #F57C00; font-style: italic;")
+            trop_percu_label.setStyleSheet("color: #F59E0B; font-style: italic; font-size: 13px;")
             layout.addWidget(trop_percu_label)
 
         layout.addStretch()

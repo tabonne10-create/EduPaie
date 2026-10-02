@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 
 from edupaie.utils.format import formater_montant
 
@@ -27,6 +28,11 @@ class TableauBord(QWidget):
     def __init__(self, services):
         super().__init__()
         self.services = services
+        self.session = services.get("session")
+        self.mode_enseignant = bool(
+            self.session and "enseignant" in self.session.roles
+            and not self.session.autorise("payments.view")
+        )
         self._setup_ui()
         self.actualiser()
 
@@ -39,9 +45,12 @@ class TableauBord(QWidget):
         header_layout.setSpacing(16)
         title_group = QVBoxLayout()
         title_group.setSpacing(5)
-        title = QLabel("Tableau de bord")
+        title = QLabel("Espace enseignant" if self.mode_enseignant else "Tableau de bord")
         title.setStyleSheet("font-size: 22px; font-weight: 700; color: #5F1015;")
-        subtitle = QLabel("Vue d'ensemble des paiements scolaires")
+        subtitle = QLabel(
+            "Effectifs et suivi de vos classes" if self.mode_enseignant
+            else "Vue d'ensemble des paiements scolaires"
+        )
         subtitle.setStyleSheet("font-size: 12px; color: #657078;")
         title_group.addWidget(title)
         title_group.addWidget(subtitle)
@@ -67,6 +76,7 @@ class TableauBord(QWidget):
         metrics_layout.setHorizontalSpacing(12)
         metrics_layout.setVerticalSpacing(12)
         self.metric_values = {}
+        self.metric_cards = {}
         metrics = [
             ("total_eleves", "Élèves inscrits", "#8B0000"),
             ("total_du", "Total dû", "#556873"),
@@ -77,8 +87,16 @@ class TableauBord(QWidget):
             card = self._create_metric_card(key, label_text, accent)
             metrics_layout.addWidget(card, 0, index)
             self.metric_values[key] = card.findChild(QLabel, f"metric_{key}")
+            self.metric_cards[key] = card
             metrics_layout.setColumnStretch(index, 1)
+        metrics_layout.setColumnStretch(0, 1)
         layout.addLayout(metrics_layout)
+        if self.mode_enseignant:
+            for key in ("total_du", "total_paye", "total_solde"):
+                self.metric_cards[key].hide()
+                metrics_layout.setColumnStretch(
+                    [metric[0] for metric in metrics].index(key), 0
+                )
 
         collection_panel = QFrame()
         collection_panel.setObjectName("collection_panel")
@@ -109,12 +127,17 @@ class TableauBord(QWidget):
         )
         collection_layout.addWidget(self.collection_progress)
         layout.addWidget(collection_panel)
+        self.collection_panel = collection_panel
+        if self.mode_enseignant:
+            collection_panel.hide()
 
         status_panel = QFrame()
         status_panel.setObjectName("status_panel")
         status_panel.setStyleSheet(
             "QFrame#status_panel { background: #FFFFFF; border: 1px solid #E1E5E9; border-radius: 6px; }"
         )
+        if self.mode_enseignant:
+            status_panel.hide()
         status_layout = QHBoxLayout(status_panel)
         status_layout.setContentsMargins(16, 10, 16, 10)
         status_layout.setSpacing(0)
@@ -165,6 +188,10 @@ class TableauBord(QWidget):
         for column in range(1, self.table.columnCount()):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(self.table, 1)
+        if self.mode_enseignant:
+            self.table.setHorizontalHeaderLabels(["Classe", "Élèves", "", "", ""])
+            for column in (2, 3, 4):
+                self.table.setColumnHidden(column, True)
 
         self.empty_classes_label = QLabel("Aucune classe n'est encore enregistrée.")
         self.empty_classes_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

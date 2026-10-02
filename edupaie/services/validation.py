@@ -166,6 +166,19 @@ def valider_date(date_str: str) -> None:
         raise ValidationError("La date doit contenir des nombres valides")
 
 
+def valider_heure_paiement(heure: str) -> None:
+    """Valide une heure au format HH:MM ou HH:MM:SS."""
+    from datetime import datetime
+
+    for format_heure in ("%H:%M", "%H:%M:%S"):
+        try:
+            datetime.strptime(heure, format_heure)
+            return
+        except ValueError:
+            continue
+    raise ValidationError("L'heure doit être au format HH:MM")
+
+
 def valider_mode_paiement(mode: str) -> None:
     """
     Valide qu'un mode de paiement est autorisé.

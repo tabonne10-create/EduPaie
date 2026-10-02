@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QPixmap
 
 from edupaie.ui.styles import get_stylesheet
 
@@ -63,6 +63,7 @@ class MainWindow(QMainWindow):
 
         # Zone de contenu
         content_area = QWidget()
+        content_area.setObjectName("content_area")
         content_layout = QVBoxLayout(content_area)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
@@ -93,15 +94,102 @@ class MainWindow(QMainWindow):
 
         layout = QHBoxLayout(header)
         layout.setContentsMargins(20, 0, 20, 0)
+        layout.setSpacing(16)
 
-        self.title_label = QLabel("EduPaie")
+        # Logo et titre
+        left_layout = QVBoxLayout()
+        left_layout.setSpacing(2)
+
+        title_layout = QHBoxLayout()
+        title_layout.setSpacing(8)
+
+        self.title_label = QLabel("Mon Établissement")
         self.title_label.setObjectName("app_title")
-        self.title_label.setStyleSheet("background-color: transparent;")
-        layout.addWidget(self.title_label)
+        self.title_label.setStyleSheet("background-color: transparent; font-size: 16px;")
+        title_layout.addWidget(self.title_label)
 
+        left_layout.addLayout(title_layout)
+
+        subtitle_label = QLabel("Gestion des élèves de votre établissement")
+        subtitle_label.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 11px;
+                background-color: transparent;
+            }
+        """)
+        left_layout.addWidget(subtitle_label)
+
+        layout.addLayout(left_layout)
         layout.addStretch()
 
+        # Info utilisateur
+        from datetime import datetime
+        from PySide6.QtCore import QTimer
+
+        right_layout = QHBoxLayout()
+        right_layout.setSpacing(12)
+
+        # Date/heure
+        self.datetime_label = QLabel()
+        self.datetime_label.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 11px;
+                background-color: transparent;
+                padding: 6px 10px;
+                border-radius: 4px;
+                background: rgba(255, 255, 255, 0.1);
+            }
+        """)
+        self._update_datetime()
+        self.datetime_timer = QTimer()
+        self.datetime_timer.timeout.connect(self._update_datetime)
+        self.datetime_timer.start(1000)
+        right_layout.addWidget(self.datetime_label)
+
+        # Avatar et info
+        user_layout = QVBoxLayout()
+        user_layout.setSpacing(1)
+
+        user_label = QLabel("Administrateur")
+        user_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 12px;
+                font-weight: 600;
+                background-color: transparent;
+            }
+        """)
+        user_layout.addWidget(user_label)
+
+        role_label = QLabel("Super Administrateur")
+        role_label.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 10px;
+                background-color: transparent;
+            }
+        """)
+        user_layout.addWidget(role_label)
+
+        right_layout.addLayout(user_layout)
+
+        # Bouton de déconnexion
+        btn_deconnexion = QPushButton("Déconnexion")
+        btn_deconnexion.setObjectName("btn_deconnexion")
+        btn_deconnexion.clicked.connect(self._on_deconnexion)
+        right_layout.addWidget(btn_deconnexion)
+
+        layout.addLayout(right_layout)
+
         return header
+
+    def _update_datetime(self):
+        """Met à jour l'affichage de la date et l'heure."""
+        from datetime import datetime
+        now = datetime.now()
+        self.datetime_label.setText(now.strftime("%d/%m/%Y %H:%M"))
 
     def _create_sidebar(self) -> QWidget:
         """
@@ -112,12 +200,53 @@ class MainWindow(QMainWindow):
         """
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setMinimumWidth(120)
-        sidebar.setMaximumWidth(180)
+        sidebar.setMinimumWidth(200)
+        sidebar.setMaximumWidth(250)
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(0, 20, 0, 20)
+        layout.setContentsMargins(10, 20, 10, 20)
         layout.setSpacing(4)
+
+        # Logo EduPaie - image
+        logo_label = QLabel()
+        try:
+            logo_path = "assets/edupaie_logo.png"
+            logo_pixmap = QPixmap(logo_path)
+            if not logo_pixmap.isNull():
+                logo_pixmap = logo_pixmap.scaled(
+                    220, 66,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                logo_label.setPixmap(logo_pixmap)
+            else:
+                # Fallback sur le texte si l'image n'est pas trouvée
+                logo_label.setText("EduPaie")
+                logo_label.setStyleSheet("""
+                    QLabel {
+                        color: #8B0000;
+                        font-size: 24px;
+                        font-weight: 800;
+                        padding: 12px 16px;
+                        background: transparent;
+                        letter-spacing: -0.5px;
+                    }
+                """)
+        except Exception:
+            # Fallback sur le texte en cas d'erreur
+            logo_label.setText("EduPaie")
+            logo_label.setStyleSheet("""
+                QLabel {
+                    color: #8B0000;
+                    font-size: 24px;
+                    font-weight: 800;
+                    padding: 12px 16px;
+                    background: transparent;
+                    letter-spacing: -0.5px;
+                }
+            """)
+        layout.addWidget(logo_label)
+        layout.addSpacing(10)
 
         # Boutons de navigation
         self.btn_eleves = self._create_nav_button("Élèves", active=True)
@@ -259,18 +388,18 @@ class MainWindow(QMainWindow):
 
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(20)
 
         # Titre
         title_label = QLabel("Enregistrer un paiement")
-        title_label.setStyleSheet("font-size: 18px; font-weight: 600; color: #8B0000;")
+        title_label.setStyleSheet("font-size: 20px; font-weight: 700; color: #1E293B;")
         layout.addWidget(title_label)
 
         # Description
         desc_label = QLabel("Sélectionnez un élève dans la liste ci-dessous, puis cliquez sur \"Fiche / Paiements\" ou double-cliquez pour enregistrer un paiement.")
         desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("color: #666666;")
+        desc_label.setStyleSheet("color: #64748B; font-size: 14px;")
         layout.addWidget(desc_label)
 
         # Réutiliser la vue des élèves
@@ -309,3 +438,41 @@ class MainWindow(QMainWindow):
         except Exception:
             # En cas d'erreur, garder le titre par défaut
             pass
+
+    def _on_deconnexion(self):
+        """Gère la déconnexion de l'utilisateur."""
+        from edupaie.ui.auth_dialog import AuthDialog
+        from PySide6.QtWidgets import QMessageBox
+
+        reply = QMessageBox.question(
+            self,
+            "Déconnexion",
+            "Voulez-vous vraiment vous déconnecter ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            # Réinitialiser la session
+            self.services['auth'].session = None
+            self.services['session'] = None
+
+            # Fermer la fenêtre actuelle
+            self.close()
+
+            # Ouvrir la fenêtre de connexion
+            connexion = AuthDialog(self.services['auth'])
+            if connexion.exec() and connexion.session is not None:
+                self.services['session'] = connexion.session
+                self.services['auth'].session = connexion.session
+                for service in self.services.values():
+                    if hasattr(service, "session"):
+                        service.session = connexion.session
+
+                # Recréer la fenêtre principale avec la nouvelle session
+                from edupaie.ui.main_window import MainWindow
+                new_window = MainWindow(self.services)
+                new_window.show()
+            else:
+                # Si l'utilisateur annule la connexion, fermer l'application
+                from PySide6.QtWidgets import QApplication
+                QApplication.instance().quit()

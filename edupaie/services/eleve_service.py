@@ -24,7 +24,7 @@ class EleveService:
 
     def __init__(self):
         """Initialise le service."""
-        pass
+        self.session = None
 
     def creer_eleve(
         self,
@@ -50,6 +50,9 @@ class EleveService:
         Raises:
             ValidationError: Si les données sont invalides
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("students.manage"):
+            raise ValidationError("Permission requise pour créer un élève")
         valider_nom(nom, "Nom")
         valider_nom(prenom, "Prénom")
         valider_montant(total_du, "Total dû")
@@ -102,6 +105,9 @@ class EleveService:
             ValidationError: Si les données sont invalides
             ConfirmationRequise: Si la baisse du total_du nécessite une confirmation
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("students.manage"):
+            raise ValidationError("Permission requise pour modifier un élève")
         valider_nom(nom, "Nom")
         valider_nom(prenom, "Prénom")
         valider_montant(total_du, "Total dû")
@@ -155,6 +161,9 @@ class EleveService:
         Raises:
             ValidationError: Si l'élève n'existe pas
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("students.manage"):
+            raise ValidationError("Permission requise pour supprimer un élève")
         with transaction() as conn:
             eleve_repo = EleveRepository(conn)
             # Vérifier que l'élève existe
@@ -203,7 +212,30 @@ class EleveService:
         """
         with readonly_connection() as conn:
             eleve_repo = EleveRepository(conn)
-            eleves = eleve_repo.lister_avec_totaux(classe_id, recherche)
+            eleves = eleve_repo.lister_avec_totaux(
+                recherche=recherche,
+                classe_id=classe_id,
+            )
+
+            session = getattr(self, "session", None)
+            if session and "enseignant" in session.roles:
+                classes_autorisees = session.classes
+                eleves = [
+                    eleve for eleve in eleves
+                    if eleve.eleve.classe_id in classes_autorisees
+                ]
+                if not session.autorise("payments.view"):
+                    eleves = [
+                        EleveAvecTotaux(
+                            Eleve(
+                                e.eleve.id, e.eleve.nom, e.eleve.prenom,
+                                e.eleve.classe_id, e.eleve.annee_scolaire, 0,
+                            ),
+                            e.nom_classe,
+                            0,
+                        )
+                        for e in eleves
+                    ]
 
             # Filtrer par statut si demandé
             if statut:
@@ -231,11 +263,20 @@ class EleveService:
             ValidationError: Si l'élève n'existe pas
         """
         with readonly_connection() as conn:
+            session = getattr(self, "session", None)
+            if session is not None and not session.autorise("payments.view"):
+                raise ValidationError("Permission requise pour consulter le statut de paiement")
             eleve_repo = EleveRepository(conn)
             # D'abord trouver l'élève
             eleve = eleve_repo.trouver_par_id(eleve_id)
             if eleve is None:
                 raise ValidationError("Élève introuvable")
+            session = getattr(self, "session", None)
+            if (
+                session and "enseignant" in session.roles
+                and eleve.classe_id not in session.classes
+            ):
+                raise ValidationError("Cet élève ne fait pas partie de vos classes")
 
             # Ensuite calculer le total payé
             total_paye = eleve_repo.total_paye(eleve_id)
@@ -266,6 +307,9 @@ class EleveService:
             ValidationError: Si l'élève n'existe pas
         """
         with readonly_connection() as conn:
+            session = getattr(self, "session", None)
+            if session is not None and not session.autorise("payments.view"):
+                raise ValidationError("Permission requise pour consulter la fiche financière")
             eleve_repo = EleveRepository(conn)
             classe_repo = ClasseRepository(conn)
             from edupaie.database.repositories.paiement_repository import PaiementRepository
@@ -275,6 +319,12 @@ class EleveService:
             eleve = eleve_repo.trouver_par_id(eleve_id)
             if eleve is None:
                 raise ValidationError("Élève introuvable")
+            session = getattr(self, "session", None)
+            if (
+                session and "enseignant" in session.roles
+                and eleve.classe_id not in session.classes
+            ):
+                raise ValidationError("Cet élève ne fait pas partie de vos classes")
 
             total_paye = eleve_repo.total_paye(eleve_id)
 
@@ -289,7 +339,7 @@ class EleveService:
             statut = determiner_statut(eleve.total_du, total_paye).value
 
             # Récupérer les paiements chronologiques
-            paiements = paiement_repo.lister_par_eleve(eleve_id)
+            paiements = paiement_repo.lister_par_eleve(eleve_id, inclure_annules=True)
 
             return {
                 "eleve": eleve,

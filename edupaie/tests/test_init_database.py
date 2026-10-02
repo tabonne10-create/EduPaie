@@ -9,6 +9,7 @@ quand elle contient déjà des données.
 import os
 import tempfile
 import shutil
+from datetime import date
 
 from edupaie.database.connection import init_database, get_connection
 from edupaie.utils.paths import get_database_path
@@ -95,3 +96,55 @@ def test_base_existante_pas_modifiee():
         finally:
             # Restaurer la fonction originale
             conn_module.get_database_path = original_get_db_path
+
+
+def test_migre_ancienne_annee_scolaire_par_defaut(tmp_path, monkeypatch):
+    import edupaie.database.connection as conn_module
+
+    db_path = tmp_path / "migration.db"
+    monkeypatch.setattr(conn_module, "get_database_path", lambda: str(db_path))
+    init_database()
+
+    conn = get_connection()
+    conn.execute(
+        "UPDATE parametres SET valeur = '2025-2026' "
+        "WHERE cle = 'annee_scolaire_courante'"
+    )
+    conn.close()
+
+    init_database()
+
+    today = date.today()
+    year_start = today.year if today.month >= 9 else today.year - 1
+    conn = get_connection()
+    valeur = conn.execute(
+        "SELECT valeur FROM parametres WHERE cle = 'annee_scolaire_courante'"
+    ).fetchone()[0]
+    conn.close()
+
+    assert valeur == f"{year_start}-{year_start + 1}"
+
+
+def test_init_base_partielle_sans_parametres_ne_plante_pas(tmp_path, monkeypatch):
+    import sqlite3
+    import edupaie.database.connection as conn_module
+
+    db_path = tmp_path / "partielle.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE classes (id INTEGER PRIMARY KEY, nom TEXT NOT NULL)")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(conn_module, "get_database_path", lambda: str(db_path))
+
+    init_database()
+
+    conn = get_connection()
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    conn.close()
+    assert "classes" in tables
+    assert "parametres" in tables
+    assert "utilisateurs" in tables
+    assert "role_permissions" in tables

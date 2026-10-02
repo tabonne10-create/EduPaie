@@ -34,7 +34,9 @@ class FakeEleveService:
 
 
 class FakePaiementService:
-    def enregistrer_paiement(self, eleve_id, montant, date_paiement, mode):
+    def enregistrer_paiement(
+        self, eleve_id, montant, date_paiement, mode, heure_paiement="00:00:00", nom_payeur=""
+    ):
         return Paiement(
             id=12,
             eleve_id=eleve_id,
@@ -44,6 +46,8 @@ class FakePaiementService:
             numero_recu="REC-2026-000012",
             solde_apres=75000 - montant,
             cree_le="2026-10-01 10:00:00",
+            heure_paiement=heure_paiement,
+            nom_payeur=nom_payeur,
         )
 
 

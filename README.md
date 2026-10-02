@@ -59,7 +59,7 @@ edupaie/
 Pour créer l'exécutable Windows :
 
 ```bash
-pyinstaller --onefile --windowed main.py
+pyinstaller --onefile --windowed --add-data "edupaie/database/schema.sql;." main.py
 ```
 
 L'exécutable se trouvera dans le dossier `dist/`.

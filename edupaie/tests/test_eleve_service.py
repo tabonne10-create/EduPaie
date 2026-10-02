@@ -169,6 +169,12 @@ class TestEleveService(unittest.TestCase):
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0].total_paye, 50000)
 
+            service.lister_eleves(classe_id=2, recherche="Martin")
+            mock_eleve_repo.lister_avec_totaux.assert_called_with(
+                recherche="Martin",
+                classe_id=2,
+            )
+
     @patch('edupaie.services.eleve_service.readonly_connection')
     @patch.object(EleveService, '__init__', lambda self: None)
     def test_fiche_retourne_toutes_les_informations(self, mock_readonly):

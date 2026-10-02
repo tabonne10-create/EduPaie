@@ -15,11 +15,15 @@ from edupaie.database.repositories.parametre_repository import ParametreReposito
 from edupaie.database.repositories.compteur_recus_repository import CompteurRecusRepository
 from edupaie.database.repositories.statistiques_repository import StatistiquesRepository
 from edupaie.services.classe_service import ClasseService
+from edupaie.services.auth_service import AuthService
 from edupaie.services.eleve_service import EleveService
 from edupaie.services.paiement_service import PaiementService
 from edupaie.services.parametre_service import ParametreService
 from edupaie.services.statistiques_service import StatistiquesService
+from edupaie.services.tuteur_service import TuteurService
+from edupaie.services.salle_service import SalleService
 from edupaie.ui.main_window import MainWindow
+from edupaie.ui.auth_dialog import AuthDialog
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -46,6 +50,7 @@ def main():
     """
     # Configurer le gestionnaire global d'exceptions
     sys.excepthook = handle_exception
+    app = QApplication(sys.argv)
 
     # Initialiser la base de données si elle n'existe pas
     try:
@@ -60,11 +65,19 @@ def main():
         'eleve': EleveService(),
         'paiement': PaiementService(),
         'parametre': ParametreService(),
-        'statistiques': StatistiquesService()
+        'statistiques': StatistiquesService(),
+        'auth': AuthService(),
+        'tuteur': TuteurService(),
+        'salle': SalleService(),
     }
 
-    # Initialiser l'application Qt
-    app = QApplication(sys.argv)
+    connexion = AuthDialog(services['auth'])
+    if not connexion.exec() or connexion.session is None:
+        sys.exit(0)
+    services['session'] = connexion.session
+    for service in services.values():
+        if hasattr(service, "session"):
+            service.session = connexion.session
 
     # Créer et afficher la fenêtre principale
     window = MainWindow(services)

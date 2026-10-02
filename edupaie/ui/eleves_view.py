@@ -5,11 +5,12 @@ Ce module définit l'interface pour lister, filtrer et gérer les élèves.
 """
 
 from datetime import date
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
     QTableWidgetItem, QPushButton, QLineEdit, QComboBox,
-    QLabel, QMessageBox, QHeaderView, QSizePolicy
+    QLabel, QMessageBox, QHeaderView, QSizePolicy, QFileDialog
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics
@@ -19,6 +20,7 @@ from edupaie.ui.styles import (
     COULEUR_TEXTE
 )
 from edupaie.utils.format import formater_montant
+from edupaie.utils.export import exporter_eleves_csv, exporter_eleves_excel
 
 
 class ElevesView(QWidget):
@@ -55,7 +57,7 @@ class ElevesView(QWidget):
             session and "enseignant" in session.roles
             and not session.autorise("payments.view")
         ):
-            for column in range(4, 8):
+            for column in range(5, 9):
                 self.table.setColumnHidden(column, True)
 
     def _create_toolbar(self) -> QWidget:
@@ -66,37 +68,41 @@ class ElevesView(QWidget):
             QWidget: Barre d'outils
         """
         toolbar = QWidget()
+        toolbar.setObjectName("search_card")
         layout = QVBoxLayout(toolbar)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
 
         filters_layout = QHBoxLayout()
-        filters_layout.setSpacing(8)
+        filters_layout.setSpacing(12)
 
         # Recherche
-        search_label = QLabel("Recherche:")
+        search_label = QLabel("Rechercher un élève (Nom, Prénom...)")
+        search_label.setStyleSheet("font-weight: 500; color: #64748B; font-size: 13px;")
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Nom ou prénom...")
-        self.search_input.setMinimumWidth(80)
+        self.search_input.setPlaceholderText("Saisir nom ou prénom...")
+        self.search_input.setMinimumWidth(200)
         self.search_input.textChanged.connect(self._on_search_changed)
 
         filters_layout.addWidget(search_label)
         filters_layout.addWidget(self.search_input, 1)
 
         # Filtre par classe
-        classe_label = QLabel("Classe:")
+        classe_label = QLabel("Classe :")
+        classe_label.setStyleSheet("font-weight: 500; color: #64748B; font-size: 13px;")
         self.classe_combo = QComboBox()
-        self.classe_combo.setMinimumWidth(80)
+        self.classe_combo.setMinimumWidth(120)
         self.classe_combo.addItem("Toutes")
         self.classe_combo.currentIndexChanged.connect(self._on_filter_changed)
 
         filters_layout.addWidget(classe_label)
-        filters_layout.addWidget(self.classe_combo, 1)
+        filters_layout.addWidget(self.classe_combo)
 
         # Filtre par statut
-        statut_label = QLabel("Statut:")
+        statut_label = QLabel("Statut :")
+        statut_label.setStyleSheet("font-weight: 500; color: #64748B; font-size: 13px;")
         self.statut_combo = QComboBox()
-        self.statut_combo.setMinimumWidth(80)
+        self.statut_combo.setMinimumWidth(120)
         self.statut_combo.addItem("Tous")
         self.statut_combo.addItem("Soldé")
         self.statut_combo.addItem("Partiellement payé")
@@ -104,16 +110,16 @@ class ElevesView(QWidget):
         self.statut_combo.currentIndexChanged.connect(self._on_filter_changed)
 
         filters_layout.addWidget(statut_label)
-        filters_layout.addWidget(self.statut_combo, 1)
+        filters_layout.addWidget(self.statut_combo)
 
         layout.addLayout(filters_layout)
 
         actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(8)
+        actions_layout.setSpacing(10)
         actions_layout.addStretch()
 
         # Boutons d'action
-        self.btn_ajouter = QPushButton("Ajouter")
+        self.btn_ajouter = QPushButton("+ Ajouter")
         self.btn_ajouter.setMinimumWidth(0)
         self.btn_ajouter.clicked.connect(self._on_ajouter)
 
@@ -121,16 +127,24 @@ class ElevesView(QWidget):
         self.btn_modifier.setMinimumWidth(0)
         self.btn_modifier.clicked.connect(self._on_modifier)
         self.btn_modifier.setEnabled(False)
+        self.btn_modifier.setProperty("secondary", True)
 
         self.btn_supprimer = QPushButton("Supprimer")
         self.btn_supprimer.setMinimumWidth(0)
         self.btn_supprimer.clicked.connect(self._on_supprimer)
         self.btn_supprimer.setEnabled(False)
+        self.btn_supprimer.setProperty("danger", True)
 
         self.btn_fiche = QPushButton("Fiche / Paiements")
         self.btn_fiche.setMinimumWidth(0)
         self.btn_fiche.clicked.connect(self._on_fiche)
         self.btn_fiche.setEnabled(False)
+        self.btn_fiche.setProperty("secondary", True)
+
+        self.btn_exporter = QPushButton("Exporter")
+        self.btn_exporter.setMinimumWidth(0)
+        self.btn_exporter.clicked.connect(self._on_exporter)
+        self.btn_exporter.setProperty("secondary", True)
 
         session = self.services.get("session")
         if session is not None:
@@ -145,6 +159,7 @@ class ElevesView(QWidget):
         actions_layout.addWidget(self.btn_modifier)
         actions_layout.addWidget(self.btn_supprimer)
         actions_layout.addWidget(self.btn_fiche)
+        actions_layout.addWidget(self.btn_exporter)
         layout.addLayout(actions_layout)
 
         return toolbar
@@ -157,9 +172,9 @@ class ElevesView(QWidget):
             QTableWidget: Tableau des élèves
         """
         table = QTableWidget()
-        table.setColumnCount(8)
+        table.setColumnCount(9)  # +1 pour le numéro de ligne
         table.setHorizontalHeaderLabels([
-            "Nom", "Prénom", "Classe", "Année",
+            "#", "Nom", "Prénom", "Classe", "Année",
             "Total dû", "Total payé", "Solde", "Statut"
         ])
         table.setWordWrap(False)
@@ -168,16 +183,20 @@ class ElevesView(QWidget):
 
         # Configuration des colonnes
         header = table.horizontalHeader()
-        header.setMinimumSectionSize(60)
+        header.setMinimumSectionSize(50)
+
+        # Colonne # : Fixe
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(0, 50)
 
         # Colonnes Nom et Prénom : Stretch avec largeur initiale plus généreuse
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.resizeSection(0, 150)  # Nom
-        header.resizeSection(1, 120)  # Prénom
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header.resizeSection(1, 150)  # Nom
+        header.resizeSection(2, 120)  # Prénom
 
         # Colonnes fixes : ResizeToContents
-        for column in range(2, table.columnCount()):
+        for column in range(3, table.columnCount()):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
 
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -242,36 +261,42 @@ class ElevesView(QWidget):
         for row, eleve_avec_totaux in enumerate(eleves):
             eleve = eleve_avec_totaux.eleve
 
+            # Numéro de ligne (badge circulaire)
+            row_badge = QLabel(str(row + 1))
+            row_badge.setObjectName("row_badge")
+            row_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.table.setCellWidget(row, 0, row_badge)
+
             # Nom (stocke l'ID de l'élève)
             nom_item = QTableWidgetItem(eleve.nom)
             nom_item.setData(Qt.ItemDataRole.UserRole, eleve.id)
-            self.table.setItem(row, 0, nom_item)
+            self.table.setItem(row, 1, nom_item)
 
             # Prénom
-            self.table.setItem(row, 1, QTableWidgetItem(eleve.prenom))
+            self.table.setItem(row, 2, QTableWidgetItem(eleve.prenom))
 
             # Classe
-            self.table.setItem(row, 2, QTableWidgetItem(eleve_avec_totaux.nom_classe))
+            self.table.setItem(row, 3, QTableWidgetItem(eleve_avec_totaux.nom_classe))
 
             # Année
-            self.table.setItem(row, 3, QTableWidgetItem(eleve.annee_scolaire))
+            self.table.setItem(row, 4, QTableWidgetItem(eleve.annee_scolaire))
 
             # Total dû
             total_du = formater_montant(eleve.total_du, devise)
-            self.table.setItem(row, 4, QTableWidgetItem(total_du))
+            self.table.setItem(row, 5, QTableWidgetItem(total_du))
 
             # Total payé
             total_paye = formater_montant(eleve_avec_totaux.total_paye, devise)
-            self.table.setItem(row, 5, QTableWidgetItem(total_paye))
+            self.table.setItem(row, 6, QTableWidgetItem(total_paye))
 
             # Solde
             solde = max(0, eleve.total_du - eleve_avec_totaux.total_paye)
             solde_formatted = formater_montant(solde, devise)
-            self.table.setItem(row, 6, QTableWidgetItem(solde_formatted))
+            self.table.setItem(row, 7, QTableWidgetItem(solde_formatted))
 
             # Statut (pastille + texte)
             statut_widget = self._create_statut_badge(eleve.total_du, eleve_avec_totaux.total_paye)
-            self.table.setCellWidget(row, 7, statut_widget)
+            self.table.setCellWidget(row, 8, statut_widget)
 
     def _create_statut_badge(self, total_du: int, total_paye: int) -> QLabel:
         """
@@ -340,8 +365,8 @@ class ElevesView(QWidget):
             return
 
         try:
-            # Récupérer l'ID de l'élève
-            eleve_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            # Récupérer l'ID de l'élève (maintenant dans la colonne 1 après ajout de #)
+            eleve_id = self.table.item(row, 1).data(Qt.ItemDataRole.UserRole)
 
             dialog = FicheEleveDialog(self.services, eleve_id, self)
             if dialog.exec():
@@ -379,8 +404,8 @@ class ElevesView(QWidget):
             return
 
         try:
-            # Récupérer l'ID de l'élève (stocké dans la première colonne)
-            eleve_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            # Récupérer l'ID de l'élève (maintenant dans la colonne 1 après ajout de #)
+            eleve_id = self.table.item(row, 1).data(Qt.ItemDataRole.UserRole)
 
             eleve = self.services['eleve'].trouver_eleve(eleve_id)
             if not eleve:
@@ -401,8 +426,8 @@ class ElevesView(QWidget):
             return
 
         try:
-            # Récupérer l'ID de l'élève
-            eleve_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            # Récupérer l'ID de l'élève (maintenant dans la colonne 1 après ajout de #)
+            eleve_id = self.table.item(row, 1).data(Qt.ItemDataRole.UserRole)
 
             eleve = self.services['eleve'].trouver_eleve(eleve_id)
             if not eleve:
@@ -432,3 +457,56 @@ class ElevesView(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la suppression : {str(e)}")
+
+    def _on_exporter(self):
+        """Gère l'export de la liste des élèves."""
+        try:
+            # Récupérer les données actuelles
+            recherche = self.search_input.text() if self.search_input.text() else None
+            classe_id = self.classe_combo.currentData()
+            statut = self.statut_combo.currentText()
+            if statut == "Tous":
+                statut = None
+
+            eleves = self.services['eleve'].lister_eleves(
+                classe_id=classe_id,
+                recherche=recherche,
+                statut=statut
+            )
+
+            if not eleves:
+                QMessageBox.warning(self, "Attention", "Aucun élève à exporter")
+                return
+
+            # Demander le format et le fichier
+            devise = self.services['parametre'].lire_parametre("devise")
+            if not devise:
+                devise = "FCFA"
+
+            file_dialog = QFileDialog(self)
+            file_dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            file_dialog.setNameFilter("Fichier Excel (*.xlsx);;Fichier CSV (*.csv)")
+            file_dialog.setDefaultSuffix("xlsx")
+            file_dialog.setWindowTitle("Exporter la liste des élèves")
+
+            if file_dialog.exec():
+                chemin_fichier = file_dialog.selectedFiles()[0]
+                suffix = Path(chemin_fichier).suffix.lower()
+
+                if suffix == '.xlsx':
+                    exporter_eleves_excel(eleves, chemin_fichier, devise)
+                    QMessageBox.information(self, "Succès", f"Export réussi : {chemin_fichier}")
+                elif suffix == '.csv':
+                    exporter_eleves_csv(eleves, chemin_fichier, devise)
+                    QMessageBox.information(self, "Succès", f"Export réussi : {chemin_fichier}")
+                else:
+                    QMessageBox.warning(self, "Erreur", "Format de fichier non supporté")
+
+        except ImportError:
+            QMessageBox.warning(
+                self,
+                "Module manquant",
+                "Pour exporter en Excel, installez openpyxl :\npip install openpyxl"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de l'export : {str(e)}")

@@ -7,8 +7,9 @@ Ce module définit la QDialog pour lister, ajouter et supprimer des classes.
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
-    QMessageBox, QHeaderView
+    QMessageBox, QHeaderView, QWidget, QComboBox, QSpinBox
 )
+from PySide6.QtCore import Qt
 
 
 class ClassesDialog(QDialog):
@@ -24,8 +25,7 @@ class ClassesDialog(QDialog):
         super().__init__()
         self.services = services
         self.setWindowTitle("Gestion des classes")
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(400)
+        self.setMinimumSize(320, 260)
 
         self._setup_ui()
         self._load_data()
@@ -50,29 +50,45 @@ class ClassesDialog(QDialog):
         Returns:
             QWidget: Barre d'outils
         """
-        from PySide6.QtWidgets import QWidget
-
         toolbar = QWidget()
-        layout = QHBoxLayout(toolbar)
-        layout.setSpacing(12)
+        layout = QVBoxLayout(toolbar)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
         # Champ de saisie pour nouveau nom
         self.nom_input = QLineEdit()
         self.nom_input.setPlaceholderText("Nom de la nouvelle classe...")
         layout.addWidget(self.nom_input)
 
+        self.salle_combo = QComboBox()
+        self.salle_combo.addItem("Aucune salle", None)
+        if "salle" in self.services:
+            for salle in self.services["salle"].lister_salles():
+                self.salle_combo.addItem(salle["nom"], salle["id"])
+        layout.addWidget(self.salle_combo)
+
+        self.capacite_input = QSpinBox()
+        self.capacite_input.setRange(0, 5000)
+        self.capacite_input.setSpecialValueText("Capacité non définie")
+        self.capacite_input.setValue(0)
+        layout.addWidget(self.capacite_input)
+
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(8)
+
         # Bouton Ajouter
         self.btn_ajouter = QPushButton("Ajouter")
         self.btn_ajouter.clicked.connect(self._on_ajouter)
-        layout.addWidget(self.btn_ajouter)
+        actions_layout.addWidget(self.btn_ajouter)
 
         # Bouton Supprimer
         self.btn_supprimer = QPushButton("Supprimer")
         self.btn_supprimer.clicked.connect(self._on_supprimer)
         self.btn_supprimer.setEnabled(False)
-        layout.addWidget(self.btn_supprimer)
+        actions_layout.addWidget(self.btn_supprimer)
 
-        layout.addStretch()
+        actions_layout.addStretch()
+        layout.addLayout(actions_layout)
 
         return toolbar
 
@@ -84,13 +100,22 @@ class ClassesDialog(QDialog):
             QTableWidget: Tableau des classes
         """
         table = QTableWidget()
-        table.setColumnCount(2)
-        table.setHorizontalHeaderLabels(["ID", "Nom"])
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels(["ID", "Nom", "Salle", "Capacité"])
+        table.setWordWrap(False)
+        table.setTextElideMode(Qt.TextElideMode.ElideRight)
 
         # Configuration des colonnes
         header = table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setMinimumSectionSize(90)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        table.setColumnWidth(0, 70)
+        table.setColumnWidth(1, 220)
+        table.setColumnWidth(2, 160)
+        table.setColumnWidth(3, 100)
 
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -123,6 +148,16 @@ class ClassesDialog(QDialog):
 
             # Nom
             self.table.setItem(row, 1, QTableWidgetItem(classe.nom))
+            salle_nom = "—"
+            if getattr(classe, "salle_id", None) is not None and "salle" in self.services:
+                salles = self.services["salle"].lister_salles(actives_seulement=False)
+                salle = next((salle for salle in salles if salle["id"] == classe.salle_id), None)
+                salle_nom = salle["nom"] if salle else "—"
+            self.table.setItem(row, 2, QTableWidgetItem(salle_nom))
+            self.table.setItem(
+                row, 3,
+                QTableWidgetItem(str(classe.capacite) if getattr(classe, "capacite", None) else "—"),
+            )
 
     def _on_selection_changed(self):
         """Gère le changement de sélection dans le tableau."""
@@ -137,8 +172,14 @@ class ClassesDialog(QDialog):
             return
 
         try:
-            self.services['classe'].creer_classe(nom)
+            capacite = self.capacite_input.value() or None
+            self.services['classe'].creer_classe(
+                nom,
+                self.salle_combo.currentData(),
+                capacite,
+            )
             self.nom_input.clear()
+            self.capacite_input.setValue(0)
             self._load_data()
         except Exception as e:
             QMessageBox.critical(self, "Erreur", str(e))

@@ -64,7 +64,8 @@ class PaiementDialog(QDialog):
     def _setup_ui(self):
         """Configure l'interface utilisateur."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
 
         # Informations de l'élève
         info_layout = self._create_eleve_info()
@@ -75,11 +76,12 @@ class PaiementDialog(QDialog):
         if not devise:
             devise = "FCFA"
         solde_label = QLabel(f"Solde restant : {formater_montant(self.solde, devise)}")
-        solde_label.setStyleSheet("font-weight: 600; color: #8B0000;")
+        solde_label.setStyleSheet("font-weight: 600; color: #8B0000; font-size: 13px;")
         layout.addWidget(solde_label)
 
         # Champ montant
         montant_layout = QHBoxLayout()
+        montant_layout.setSpacing(8)
         montant_label = QLabel("Montant :")
         self.montant_input = QLineEdit()
         self.montant_input.setPlaceholderText("Ex: 50000")
@@ -89,6 +91,7 @@ class PaiementDialog(QDialog):
 
         # Champ date
         date_layout = QHBoxLayout()
+        date_layout.setSpacing(8)
         date_label = QLabel("Date :")
         self.date_input = QDateEdit()
         self.date_input.setCalendarPopup(True)
@@ -99,6 +102,7 @@ class PaiementDialog(QDialog):
         layout.addLayout(date_layout)
 
         heure_layout = QHBoxLayout()
+        heure_layout.setSpacing(8)
         heure_label = QLabel("Heure :")
         self.heure_input = QTimeEdit()
         self.heure_input.setTime(QTime.currentTime())
@@ -109,6 +113,7 @@ class PaiementDialog(QDialog):
 
         # Champ mode de paiement
         mode_layout = QHBoxLayout()
+        mode_layout.setSpacing(8)
         mode_label = QLabel("Mode :")
         self.mode_combo = QComboBox()
         self.mode_combo.addItem("Espèces", "especes")
@@ -121,6 +126,7 @@ class PaiementDialog(QDialog):
         layout.addLayout(mode_layout)
 
         payeur_layout = QHBoxLayout()
+        payeur_layout.setSpacing(8)
         self.payeur_label = QLabel("Nom de l'envoyeur :")
         self.payeur_input = QLineEdit()
         self.payeur_input.setPlaceholderText("Facultatif, si différent de l'élève")
@@ -139,17 +145,24 @@ class PaiementDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-    def _create_eleve_info(self) -> QLabel:
+    def _create_eleve_info(self) -> QWidget:
         """
-        Crée le label d'information de l'élève.
+        Crée le widget d'information de l'élève.
 
         Returns:
-            QLabel: Label avec les informations de l'élève
+            QWidget: Widget avec les informations de l'élève
         """
+        widget = QWidget()
+        widget.setObjectName("secondary_area")
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(4)
+
         info_text = f"{self.eleve.nom} {self.eleve.prenom} - {self.nom_classe}"
         label = QLabel(info_text)
-        label.setStyleSheet("font-weight: 600; font-size: 14px;")
-        return label
+        label.setStyleSheet("font-weight: 600; font-size: 16px; color: #1E293B;")
+        layout.addWidget(label)
+
+        return widget
 
     def _mettre_a_jour_payeur(self):
         """Met en évidence le payeur pour les paiements non espèces."""

@@ -28,30 +28,49 @@ class ClasseRepository:
             Liste des classes triées par nom
         """
         cursor = self.conn.execute(
-            "SELECT id, nom FROM classes ORDER BY nom"
+            "SELECT id, nom, salle_id, capacite FROM classes ORDER BY nom"
         )
-        return [Classe(row['id'], row['nom']) for row in cursor.fetchall()]
+        return [Classe(row['id'], row['nom'], row['salle_id'], row['capacite']) for row in cursor.fetchall()]
     
     def trouver_par_id(self, classe_id: int) -> Optional[Classe]:
         """
         Trouve une classe par son identifiant.
-        
+
         Args:
             classe_id: Identifiant de la classe
-            
+
         Returns:
             La classe trouvée ou None
         """
         cursor = self.conn.execute(
-            "SELECT id, nom FROM classes WHERE id = ?",
+            "SELECT id, nom, salle_id, capacite FROM classes WHERE id = ?",
             (classe_id,)
         )
         row = cursor.fetchone()
         if row:
-            return Classe(row['id'], row['nom'])
+            return Classe(row['id'], row['nom'], row['salle_id'], row['capacite'])
+        return None
+
+    def trouver_par_nom(self, nom: str) -> Optional[Classe]:
+        """
+        Trouve une classe par son nom.
+
+        Args:
+            nom: Nom de la classe
+
+        Returns:
+            La classe trouvée ou None
+        """
+        cursor = self.conn.execute(
+            "SELECT id, nom, salle_id, capacite FROM classes WHERE nom = ?",
+            (nom,)
+        )
+        row = cursor.fetchone()
+        if row:
+            return Classe(row['id'], row['nom'], row['salle_id'], row['capacite'])
         return None
     
-    def creer(self, nom: str) -> Classe:
+    def creer(self, nom: str, salle_id: int = None, capacite: int = None) -> Classe:
         """
         Crée une nouvelle classe.
         
@@ -68,10 +87,10 @@ class ClasseRepository:
         """
         try:
             cursor = self.conn.execute(
-                "INSERT INTO classes (nom) VALUES (?)",
-                (nom,)
+                "INSERT INTO classes (nom, salle_id, capacite) VALUES (?, ?, ?)",
+                (nom, salle_id, capacite)
             )
-            return Classe(cursor.lastrowid, nom)
+            return Classe(cursor.lastrowid, nom, salle_id, capacite)
         except sqlite3.IntegrityError as e:
             raise ClasseRepositoryError(
                 f"Impossible de créer la classe '{nom}' : nom déjà existant"

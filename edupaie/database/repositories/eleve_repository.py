@@ -148,7 +148,7 @@ class EleveRepository:
         query = """
             SELECT e.id, e.nom, e.prenom, e.classe_id, e.annee_scolaire, e.total_du,
                    c.nom as nom_classe,
-                   COALESCE(SUM(p.montant), 0) as total_paye
+                   COALESCE(SUM(CASE WHEN p.annule_le IS NULL THEN p.montant ELSE 0 END), 0) as total_paye
             FROM eleves e
             JOIN classes c ON e.classe_id = c.id
             LEFT JOIN paiements p ON e.id = p.eleve_id
@@ -213,7 +213,7 @@ class EleveRepository:
         """
         cursor = self.conn.execute(
             "SELECT COALESCE(SUM(montant), 0) as total FROM paiements "
-            "WHERE eleve_id = ?",
+            "WHERE eleve_id = ? AND annule_le IS NULL",
             (eleve_id,)
         )
         return cursor.fetchone()['total']

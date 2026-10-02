@@ -48,8 +48,8 @@ def test_registre_recherche_selectionne_et_exporte_le_recu(monkeypatch):
 
     assert view.table.rowCount() == 1
     assert view.count_label.text() == "1 reçu"
-    assert view.table.item(0, 1).text() == "REC-2026-000007"
-    assert view.table.item(0, 2).text() == "Aminata Diallo"
+    assert view.table.item(0, 2).text() == "REC-2026-000007"
+    assert view.table.item(0, 3).text() == "Aminata Diallo"
     assert not view.btn_exporter.isEnabled()
 
     view.recherche_input.setText("Aminata")

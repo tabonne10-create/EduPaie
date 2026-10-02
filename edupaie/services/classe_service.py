@@ -18,9 +18,14 @@ class ClasseService:
 
     def __init__(self):
         """Initialise le service."""
-        pass
+        self.session = None
 
-    def creer_classe(self, nom: str) -> Classe:
+    def creer_classe(
+        self,
+        nom: str,
+        salle_id: int = None,
+        capacite: int = None,
+    ) -> Classe:
         """
         Crée une nouvelle classe.
 
@@ -33,11 +38,16 @@ class ClasseService:
         Raises:
             ValidationError: Si le nom est invalide
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("classes.manage"):
+            raise ValidationError("Permission requise pour créer une classe")
         valider_nom(nom, "Nom de la classe")
+        if capacite is not None and capacite <= 0:
+            raise ValidationError("La capacité doit être supérieure à zéro")
 
         with transaction() as conn:
             repo = ClasseRepository(conn)
-            classe = repo.creer(nom)
+            classe = repo.creer(nom, salle_id, capacite)
             return classe
 
     def modifier_classe(self, classe_id: int, nouveau_nom: str) -> Classe:
@@ -54,6 +64,9 @@ class ClasseService:
         Raises:
             ValidationError: Si le nom est invalide
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("classes.manage"):
+            raise ValidationError("Permission requise pour modifier une classe")
         valider_nom(nouveau_nom, "Nom de la classe")
 
         with transaction() as conn:
@@ -73,6 +86,9 @@ class ClasseService:
             ConfirmationRequise: Si confirmer est False et la classe a des élèves
             RegleMetierError: Si la classe a des élèves et confirmation refusée
         """
+        session = getattr(self, "session", None)
+        if session is not None and not session.autorise("classes.manage"):
+            raise ValidationError("Permission requise pour supprimer une classe")
         with transaction() as conn:
             repo = ClasseRepository(conn)
             # Vérifier si la classe a des élèves
@@ -98,7 +114,11 @@ class ClasseService:
         """
         with readonly_connection() as conn:
             repo = ClasseRepository(conn)
-            return repo.lister()
+            classes = repo.lister()
+            session = getattr(self, "session", None)
+            if session and "enseignant" in session.roles:
+                return [classe for classe in classes if classe.id in session.classes]
+            return classes
 
     def trouver_classe(self, classe_id: int) -> Classe:
         """

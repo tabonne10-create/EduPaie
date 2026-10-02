@@ -15,7 +15,7 @@ class StatistiquesService:
 
     def __init__(self):
         """Initialise le service."""
-        pass
+        self.session = None
 
     def obtenir_statistiques_globales(self) -> dict:
         """
@@ -39,6 +39,19 @@ class StatistiquesService:
             from edupaie.database.repositories.eleve_repository import EleveRepository
             eleve_repo = EleveRepository(conn)
             eleves = eleve_repo.lister_avec_totaux()
+
+            session = getattr(self, "session", None)
+            if session and "enseignant" in session.roles:
+                eleves = [e for e in eleves if e.eleve.classe_id in session.classes]
+                return {
+                    "total_eleves": len(eleves),
+                    "total_du": 0,
+                    "total_paye": 0,
+                    "total_solde": 0,
+                    "eleves_soldes": 0,
+                    "eleves_partiellement_payes": 0,
+                    "eleves_non_payes": 0,
+                }
 
             eleves_soldes = 0
             eleves_partiellement_payes = 0
@@ -80,11 +93,29 @@ class StatistiquesService:
         Returns:
             Dictionnaire avec les statistiques de la classe
         """
+        session = getattr(self, "session", None)
+        if (
+            session and "enseignant" in session.roles
+            and classe_id not in session.classes
+        ):
+            from edupaie.services.exceptions import ValidationError
+            raise ValidationError("Cette classe ne vous est pas affectée")
+
         with transaction() as conn:
             from edupaie.database.repositories.eleve_repository import EleveRepository
             eleve_repo = EleveRepository(conn)
 
             eleves = eleve_repo.lister_avec_totaux(classe_id=classe_id)
+            if session and "enseignant" in session.roles:
+                return {
+                    "total_eleves": len(eleves),
+                    "total_du": 0,
+                    "total_paye": 0,
+                    "total_solde": 0,
+                    "eleves_soldes": 0,
+                    "eleves_partiellement_payes": 0,
+                    "eleves_non_payes": 0,
+                }
 
             total_du = sum(e.eleve.total_du for e in eleves)
             total_paye = sum(e.total_paye for e in eleves)

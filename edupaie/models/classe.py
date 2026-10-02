@@ -11,3 +11,5 @@ class Classe:
     
     id: int
     nom: str
+    salle_id: int | None = None
+    capacite: int | None = None

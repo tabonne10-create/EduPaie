@@ -8,6 +8,7 @@ import unittest
 import sqlite3
 import os
 import tempfile
+from datetime import date
 
 
 class TestSchema(unittest.TestCase):
@@ -62,7 +63,12 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(parametres['nom_etablissement'], 'Mon Établissement')
         self.assertEqual(parametres['devise'], 'FCFA')
         self.assertEqual(parametres['prefixe_recu'], 'REC')
-        self.assertEqual(parametres['annee_scolaire_courante'], '2025-2026')
+        today = date.today()
+        year_start = today.year if today.month >= 9 else today.year - 1
+        self.assertEqual(
+            parametres['annee_scolaire_courante'],
+            f'{year_start}-{year_start + 1}',
+        )
     
     def test_montant_paiement_positif(self):
         """Vérifie qu'un paiement avec montant <= 0 est refusé (CHECK)."""

@@ -89,10 +89,13 @@ def generer_recu_pdf(paiement, fiche: dict, parametres: dict[str, str], chemin: 
     informations = [
         ["N° de reçu", escape(paiement.numero_recu)],
         ["Date", escape(date_paiement)],
+        ["Heure", escape(paiement.heure_paiement[:5])],
         ["Reçu de", escape(nom_eleve)],
         ["Classe", escape(fiche.get("nom_classe", ""))],
         ["Année scolaire", escape(eleve.annee_scolaire)],
     ]
+    if paiement.nom_payeur:
+        informations.append(["Payeur", escape(paiement.nom_payeur)])
     tableau_informations = Table(informations, colWidths=[34 * mm, 80 * mm], hAlign="LEFT")
     tableau_informations.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
@@ -134,6 +137,17 @@ def generer_recu_pdf(paiement, fiche: dict, parametres: dict[str, str], chemin: 
         Spacer(1, 6 * mm),
         resume_paiement,
         Spacer(1, 8 * mm),
+    ]
+    if paiement.est_annule:
+        elements.extend([
+            Paragraph(
+                f"<font color='#B43B3B'><b>PAIEMENT ANNULÉ</b></font>"
+                f"{': ' + escape(paiement.motif_annulation) if paiement.motif_annulation else ''}",
+                styles["ReceiptBody"],
+            ),
+            Spacer(1, 5 * mm),
+        ])
+    elements.extend([
         Paragraph(
             f"Solde restant après paiement : <b>{formater_montant(paiement.solde_apres, devise)}</b>",
             styles["ReceiptBody"],
@@ -142,7 +156,7 @@ def generer_recu_pdf(paiement, fiche: dict, parametres: dict[str, str], chemin: 
         Paragraph("Merci de votre règlement.", styles["ReceiptSmall"]),
         Spacer(1, 10 * mm),
         Paragraph("Signature et cachet", styles["ReceiptSmall"]),
-    ]
+    ])
 
     document = SimpleDocTemplate(
         str(destination),

@@ -53,3 +53,5 @@ Thumbs.db
 
 # Documentation build
 docs/_build/
+# Kimi project memory
+.kimi-memory/
