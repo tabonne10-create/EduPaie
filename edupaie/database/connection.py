@@ -202,9 +202,9 @@ def init_database():
 
     # Charger le schéma pour initialiser les bases neuves ou créer les nouvelles tables.
     if getattr(sys, 'frozen', False):
-        # Mode packagé PyInstaller : schema.sql est dans sys._MEIPASS
+        # Mode packagé PyInstaller : schema.sql est dans sys._MEIPASS/edupaie/database/
         base_dir = sys._MEIPASS
-        schema_path = os.path.join(base_dir, 'schema.sql')
+        schema_path = os.path.join(base_dir, 'edupaie', 'database', 'schema.sql')
     else:
         # Mode développement
         schema_path = os.path.join(

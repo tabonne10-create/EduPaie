@@ -10,14 +10,16 @@ sys.path.insert(0, r'D:\EduPaie\pyinstaller_lib')
 from PyInstaller.__main__ import run
 
 if __name__ == '__main__':
-    # Arguments pour PyInstaller sans UPX
+    # Arguments pour PyInstaller sans UPX et en excluant PIL_avif
     sys.argv = [
         'build_with_noupx.py',
         '--onefile',
         '--windowed',
         '--noupx',  # Désactiver UPX pour éviter les erreurs de décompression
+        '--exclude-module=PIL._imagingavif',  # Exclure le module AVIF problématique
         '--icon=assets/edupaie_favicon.ico',
         '--add-data=assets;assets',
+        '--add-data=edupaie/database/schema.sql;edupaie/database',
         '--hidden-import=PySide6.QtCore',
         '--hidden-import=PySide6.QtGui',
         '--hidden-import=PySide6.QtWidgets',
