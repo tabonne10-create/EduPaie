@@ -202,7 +202,7 @@ class ElevesView(QWidget):
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         table.itemSelectionChanged.connect(self._on_selection_changed)
-        table.doubleClicked.connect(self._on_double_click)
+        table.doubleClicked.connect(self._on_fiche)
 
         # Activer le scrollbar horizontal si nécessaire
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
