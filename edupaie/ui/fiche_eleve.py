@@ -33,20 +33,24 @@ class FicheEleveDialog(QDialog):
         self.services = services
         self.eleve_id = eleve_id
         self.parent_view = parent_view
+        self._fiche_chargee = False
 
         self.setWindowTitle("Fiche élève")
         self.setMinimumWidth(600)
         self.setMinimumHeight(500)
 
         self._load_fiche()
-        self._setup_ui()
+        if self._fiche_chargee:
+            self._setup_ui()
 
     def _load_fiche(self):
         """Charge les données de la fiche."""
         try:
             self.fiche = self.services['eleve'].fiche(self.eleve_id)
+            self._fiche_chargee = True
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors du chargement : {str(e)}")
+            self._fiche_chargee = False
             self.reject()
 
     def _setup_ui(self):
