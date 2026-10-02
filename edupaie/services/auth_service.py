@@ -297,3 +297,19 @@ class AuthService:
                 "INSERT INTO utilisateur_classes (utilisateur_id, classe_id) VALUES (?, ?)",
                 [(utilisateur_id, classe_id) for classe_id in set(classe_ids)],
             )
+
+    def lister_classes_utilisateur(self, utilisateur_id: int) -> set[int]:
+        """
+        Liste les classes affectées à un utilisateur.
+
+        Args:
+            utilisateur_id: ID de l'utilisateur
+
+        Returns:
+            Ensemble des IDs des classes
+        """
+        with readonly_connection() as conn:
+            return {row[0] for row in conn.execute(
+                "SELECT classe_id FROM utilisateur_classes WHERE utilisateur_id = ?",
+                (utilisateur_id,),
+            )}

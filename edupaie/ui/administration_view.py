@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from edupaie.database.connection import readonly_connection
 
 
 class AdministrationView(QWidget):
@@ -251,13 +250,7 @@ class AdministrationView(QWidget):
         utilisateur_id = self._utilisateur_selectionne()
         if utilisateur_id is None:
             return
-        with readonly_connection() as conn:
-            affectations = {
-                row[0] for row in conn.execute(
-                    "SELECT classe_id FROM utilisateur_classes WHERE utilisateur_id = ?",
-                    (utilisateur_id,),
-                )
-            }
+        affectations = self.auth.lister_classes_utilisateur(utilisateur_id)
         for i in range(self.classes_list.count()):
             item = self.classes_list.item(i)
             item.setCheckState(

@@ -18,6 +18,7 @@ from edupaie.ui.styles import (
     COULEUR_TEXTE
 )
 from edupaie.utils.format import formater_montant
+from edupaie.utils.formatage import get_mode_libelle
 from edupaie.ui.recu_export import proposer_export_recu
 
 
@@ -239,7 +240,7 @@ class FicheEleveDialog(QDialog):
                 paiement.date_paiement,
                 paiement.heure_paiement[:5],
                 formater_montant(paiement.montant, devise),
-                self._get_mode_libelle(paiement.mode),
+                get_mode_libelle(paiement.mode),
                 paiement.numero_recu,
                 paiement.nom_payeur or "—",
                 "Annulé" if paiement.est_annule else "Valide",
@@ -251,24 +252,6 @@ class FicheEleveDialog(QDialog):
                 if column == 6 and paiement.est_annule:
                     item.setForeground(Qt.GlobalColor.darkRed)
                 table.setItem(row, column, item)
-
-    def _get_mode_libelle(self, mode: str) -> str:
-        """
-        Retourne le libellé accentué du mode de paiement.
-
-        Args:
-            mode: Code du mode (especes, cheque, virement, mobile_money)
-
-        Returns:
-            Libellé accentué
-        """
-        libelles = {
-            "especes": "Espèces",
-            "cheque": "Chèque",
-            "virement": "Virement",
-            "mobile_money": "Mobile Money"
-        }
-        return libelles.get(mode, mode)
 
     def _create_buttons(self) -> QWidget:
         """

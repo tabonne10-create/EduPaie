@@ -11,6 +11,7 @@ from edupaie.database.connection import readonly_connection
 from edupaie.services.validation import valider_nom
 from edupaie.services.exceptions import ValidationError, RegleMetierError, ConfirmationRequise
 from edupaie.models.classe import Classe
+from edupaie.utils.permissions import est_enseignant
 
 
 class ClasseService:
@@ -116,7 +117,7 @@ class ClasseService:
             repo = ClasseRepository(conn)
             classes = repo.lister()
             session = getattr(self, "session", None)
-            if session and "enseignant" in session.roles:
+            if est_enseignant(session):
                 return [classe for classe in classes if classe.id in session.classes]
             return classes
 

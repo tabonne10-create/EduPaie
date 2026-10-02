@@ -17,6 +17,7 @@ from edupaie.services.validation import (
 from edupaie.services.exceptions import ValidationError, ConfirmationRequise
 from edupaie.models.eleve import Eleve
 from edupaie.models.eleve_avec_totaux import EleveAvecTotaux
+from edupaie.utils.permissions import est_enseignant, filtrer_par_classes_autorisees
 
 
 class EleveService:
@@ -218,12 +219,12 @@ class EleveService:
             )
 
             session = getattr(self, "session", None)
-            if session and "enseignant" in session.roles:
-                classes_autorisees = session.classes
-                eleves = [
-                    eleve for eleve in eleves
-                    if eleve.eleve.classe_id in classes_autorisees
-                ]
+            if est_enseignant(session):
+                # Filtrer par classes autorisées
+                eleves = filtrer_par_classes_autorisees(
+                    eleves, session, lambda e: e.eleve.classe_id
+                )
+                # Masquer les informations financières si pas la permission
                 if not session.autorise("payments.view"):
                     eleves = [
                         EleveAvecTotaux(

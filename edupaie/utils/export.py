@@ -143,8 +143,8 @@ def exporter_paiements_csv(paiements, chemin_fichier: str, devise: str = "FCFA")
 
         # Données
         for paiement in paiements:
-            from edupaie.ui.fiche_eleve import FicheEleveDialog
-            mode_libelle = FicheEleveDialog(None, None)._get_mode_libelle(paiement.mode)
+            from edupaie.utils.formatage import get_mode_libelle
+            mode_libelle = get_mode_libelle(paiement.mode)
 
             writer.writerow([
                 paiement.numero_recu,
@@ -195,8 +195,8 @@ def exporter_paiements_excel(paiements, chemin_fichier: str, devise: str = "FCFA
 
     # Données
     for row, paiement in enumerate(paiements, 2):
-        from edupaie.ui.fiche_eleve import FicheEleveDialog
-        mode_libelle = FicheEleveDialog(None, None)._get_mode_libelle(paiement.mode)
+        from edupaie.utils.formatage import get_mode_libelle
+        mode_libelle = get_mode_libelle(paiement.mode)
 
         data = [
             paiement.numero_recu,

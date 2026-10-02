@@ -8,6 +8,7 @@ en utilisant StatistiquesRepository.
 from edupaie.database.repositories.statistiques_repository import StatistiquesRepository
 from edupaie.database.transaction import transaction
 from edupaie.services.calculs import determiner_statut
+from edupaie.utils.permissions import est_enseignant
 
 
 class StatistiquesService:
@@ -41,7 +42,7 @@ class StatistiquesService:
             eleves = eleve_repo.lister_avec_totaux()
 
             session = getattr(self, "session", None)
-            if session and "enseignant" in session.roles:
+            if est_enseignant(session):
                 eleves = [e for e in eleves if e.eleve.classe_id in session.classes]
                 return {
                     "total_eleves": len(eleves),
@@ -95,7 +96,7 @@ class StatistiquesService:
         """
         session = getattr(self, "session", None)
         if (
-            session and "enseignant" in session.roles
+            est_enseignant(session)
             and classe_id not in session.classes
         ):
             from edupaie.services.exceptions import ValidationError
@@ -106,7 +107,7 @@ class StatistiquesService:
             eleve_repo = EleveRepository(conn)
 
             eleves = eleve_repo.lister_avec_totaux(classe_id=classe_id)
-            if session and "enseignant" in session.roles:
+            if est_enseignant(session):
                 return {
                     "total_eleves": len(eleves),
                     "total_du": 0,

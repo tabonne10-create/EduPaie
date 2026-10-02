@@ -7,6 +7,7 @@ en utilisant ParametreRepository et les fonctions de validation.
 
 from edupaie.database.repositories.parametre_repository import ParametreRepository
 from edupaie.database.transaction import transaction
+from edupaie.database.connection import readonly_connection
 from edupaie.services.validation import valider_nom, valider_telephone, valider_email
 from edupaie.services.exceptions import ValidationError
 
@@ -31,7 +32,7 @@ class ParametreService:
         Raises:
             ValidationError: Si le paramètre n'existe pas
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             repo = ParametreRepository(conn)
             valeur = repo.lire(cle)
             if valeur is None:
@@ -68,7 +69,7 @@ class ParametreService:
         Returns:
             Dictionnaire des paramètres
         """
-        with transaction() as conn:
+        with readonly_connection() as conn:
             repo = ParametreRepository(conn)
             return repo.lire_tous()
 
