@@ -40,7 +40,10 @@ def test_role_enseignant_et_feature_flags_sont_modifiables(tmp_path, monkeypatch
     )
     init_database()
     service = AuthService()
-    service.creer_premier_directeur("Directeur", "directeur", "mot-de-passe-long-123")
+    session_directeur = service.creer_premier_directeur("Directeur", "directeur", "mot-de-passe-long-123")
+
+    # Définir la session du directeur pour créer un utilisateur
+    service.session = session_directeur
     enseignant = service.creer_utilisateur(
         "Moussa Fall",
         "moussa",

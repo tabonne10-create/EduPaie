@@ -64,7 +64,7 @@ class PaiementService:
         """
         session = getattr(self, "session", None)
         if session is not None and not session.autorise("payments.register"):
-            raise ValidationError("Permission requise pour enregistrer un paiement")
+            raise ValidationError(f"Permission requise pour enregistrer un paiement (payments.register). Permissions disponibles: {session.permissions}")
         valider_montant_positif(montant, "Montant")
         valider_date(date_paiement)
         valider_mode_paiement(mode)

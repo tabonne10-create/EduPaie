@@ -336,11 +336,7 @@ class MainWindow(QMainWindow):
             (self.btn_tuteurs, 6, "guardians.manage", "guardians"),
         ]
         for button, index, _permission, _feature in self.navigation:
-            if button == self.btn_paiements:
-                # Le bouton Paiements renvoie vers la page Élèves (pour l'étape 5)
-                button.clicked.connect(lambda: self._show_page(0))
-            else:
-                button.clicked.connect(lambda checked=False, page=index: self._show_page(page))
+            button.clicked.connect(lambda checked=False, page=index: self._show_page(page))
         self._configurer_navigation()
 
     def _configurer_navigation(self):

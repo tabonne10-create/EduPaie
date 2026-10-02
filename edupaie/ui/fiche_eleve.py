@@ -7,7 +7,7 @@ Ce module définit la QDialog affichant la fiche complète d'un élève.
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
-    QMessageBox
+    QMessageBox, QWidget
 )
 from PySide6.QtCore import Qt
 
@@ -82,8 +82,6 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Widget d'identité
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         widget.setStyleSheet("background-color: #F5F6F8; border-radius: 8px; padding: 16px;")
         layout = QVBoxLayout(widget)
@@ -110,8 +108,6 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Widget financier
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QHBoxLayout(widget)
         layout.setSpacing(24)
@@ -190,8 +186,6 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Tableau d'historique
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(8)
@@ -248,8 +242,6 @@ class FicheEleveDialog(QDialog):
         Returns:
             QWidget: Boutons d'action
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QHBoxLayout(widget)
         layout.setSpacing(12)
@@ -259,10 +251,9 @@ class FicheEleveDialog(QDialog):
         self.btn_nouveau_paiement.clicked.connect(self._on_nouveau_paiement)
         layout.addWidget(self.btn_nouveau_paiement)
 
-        # Bouton Voir le reçu (désactivé pour l'étape 5)
+        # Bouton Voir le reçu
         self.btn_voir_recu = QPushButton("Voir le reçu")
-        self.btn_voir_recu.setEnabled(False)
-        self.btn_voir_recu.setToolTip("Disponible à l'étape 6")
+        self.btn_voir_recu.clicked.connect(self._on_voir_recu)
         layout.addWidget(self.btn_voir_recu)
 
         layout.addStretch()
@@ -278,10 +269,68 @@ class FicheEleveDialog(QDialog):
             if dialog.exec():
                 # Paiement enregistré, recharger la fiche
                 self._load_fiche()
-                # Rafraîchir l'interface
-                self._setup_ui()
+                if self._fiche_chargee:
+                    # Recréer l'interface avec les nouvelles données
+                    # Nettoyer le layout existant
+                    layout = self.layout()
+                    while layout.count():
+                        item = layout.takeAt(0)
+                        if item.widget():
+                            item.widget().deleteLater()
+                    # Recréer l'interface
+                    self._setup_ui()
                 # Rafraîchir la vue parente si elle existe
                 if self.parent_view:
                     self.parent_view._refresh_table()
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de l'enregistrement : {str(e)}")
+
+    def _on_voir_recu(self):
+        """Gère le clic sur le bouton Voir le reçu."""
+        if not self.fiche["paiements"]:
+            QMessageBox.information(self, "Information", "Aucun paiement enregistré pour cet élève.")
+            return
+
+        from edupaie.receipts.pdf_generator import generer_recu_pdf
+        from PySide6.QtWidgets import QFileDialog
+        import subprocess
+        import platform
+        from pathlib import Path
+
+        try:
+            # Sélectionner le dernier paiement
+            paiement = self.fiche["paiements"][-1]
+
+            # Demander où sauvegarder le PDF
+            devise = self.services['parametre'].lire_parametre("devise") or "FCFA"
+            default_filename = f"Recu_{paiement.numero_recu}.pdf"
+
+            file_dialog = QFileDialog(self)
+            file_dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            file_dialog.setNameFilter("Fichier PDF (*.pdf)")
+            file_dialog.setDefaultSuffix("pdf")
+            file_dialog.selectFile(default_filename)
+            file_dialog.setWindowTitle("Enregistrer le reçu")
+
+            if file_dialog.exec():
+                chemin_fichier = file_dialog.selectedFiles()[0]
+
+                # Récupérer tous les paramètres
+                parametres = self.services['parametre'].lire_tous_les_parametres()
+
+                # Générer le PDF
+                generer_recu_pdf(paiement, self.fiche, parametres, chemin_fichier)
+
+                # Ouvrir le PDF avec le visualiseur par défaut
+                chemin = Path(chemin_fichier)
+                if platform.system() == "Windows":
+                    subprocess.run(["start", "", str(chemin)], shell=True)
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.run(["open", str(chemin)])
+                else:  # Linux
+                    subprocess.run(["xdg-open", str(chemin)])
+
+                QMessageBox.information(self, "Succès", f"Reçu généré : {chemin_fichier}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la génération du reçu : {str(e)}")

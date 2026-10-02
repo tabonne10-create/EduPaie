@@ -8,7 +8,7 @@ from datetime import date
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QComboBox, QSpinBox, QDialogButtonBox,
-    QMessageBox
+    QMessageBox, QWidget, QDateEdit
 )
 from PySide6.QtCore import Qt
 
@@ -29,6 +29,7 @@ class PaiementDialog(QDialog):
         super().__init__()
         self.services = services
         self.eleve_fiche = eleve_fiche
+        self.paiement_enregistre = None  # Pour les tests
 
         self.setWindowTitle("Enregistrer un paiement")
         self.setMinimumWidth(450)
@@ -70,8 +71,6 @@ class PaiementDialog(QDialog):
         Returns:
             QWidget: Widget d'information
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         widget.setStyleSheet("background-color: #F5F6F8; border-radius: 8px; padding: 12px;")
         layout = QVBoxLayout(widget)
@@ -97,8 +96,6 @@ class PaiementDialog(QDialog):
         Returns:
             QWidget: Widget d'information
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QHBoxLayout(widget)
         layout.setSpacing(8)
@@ -123,8 +120,6 @@ class PaiementDialog(QDialog):
         Returns:
             QWidget: Formulaire de paiement
         """
-        from PySide6.QtWidgets import QWidget
-
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(8)
@@ -143,7 +138,6 @@ class PaiementDialog(QDialog):
         # Date
         date_layout = QHBoxLayout()
         date_label = QLabel("Date *")
-        from PySide6.QtWidgets import QDateEdit
         self.date_input = QDateEdit()
         self.date_input.setCalendarPopup(True)
         self.date_input.setDate(date.today())
@@ -168,7 +162,11 @@ class PaiementDialog(QDialog):
     def _populate_fields(self):
         """Remplit les champs avec les valeurs par défaut."""
         # Le montant max ne peut pas dépasser le solde
-        self.montant_input.setMaximum(self.eleve_fiche["solde"])
+        solde = self.eleve_fiche["solde"]
+        if solde > 0:
+            self.montant_input.setMaximum(solde)
+        else:
+            self.montant_input.setMaximum(999999999)
 
     def _on_accept(self):
         """Gère la validation et l'acceptation du formulaire."""
@@ -186,6 +184,9 @@ class PaiementDialog(QDialog):
                 date_paiement,
                 mode
             )
+
+            # Stocker pour les tests
+            self.paiement_enregistre = paiement
 
             # Message de succès avec numéro de reçu
             QMessageBox.information(
@@ -211,5 +212,14 @@ class PaiementDialog(QDialog):
                 )
                 return
 
-            # ValidationError
-            QMessageBox.critical(self, "Erreur", str(e))
+            # ValidationError (incluant erreurs de permission)
+            if "ValidationError" in type(e).__name__:
+                QMessageBox.warning(
+                    self,
+                    "Erreur de validation",
+                    str(e)
+                )
+                return
+
+            # Autres erreurs
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de l'enregistrement du paiement :\n{str(e)}")
