@@ -20,17 +20,19 @@ from edupaie.utils.format import formater_montant
 class FicheEleveDialog(QDialog):
     """Dialogue de fiche élève."""
 
-    def __init__(self, services, eleve_id: int):
+    def __init__(self, services, eleve_id: int, parent_view=None):
         """
         Initialise la fiche élève.
 
         Args:
             services: Dictionnaire des services métier
             eleve_id: ID de l'élève
+            parent_view: Vue parente (optionnel, pour rafraîchissement)
         """
         super().__init__()
         self.services = services
         self.eleve_id = eleve_id
+        self.parent_view = parent_view
 
         self.setWindowTitle("Fiche élève")
         self.setMinimumWidth(600)
@@ -274,5 +276,8 @@ class FicheEleveDialog(QDialog):
                 self._load_fiche()
                 # Rafraîchir l'interface
                 self._setup_ui()
+                # Rafraîchir la vue parente si elle existe
+                if self.parent_view:
+                    self.parent_view._refresh_table()
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de l'enregistrement : {str(e)}")
